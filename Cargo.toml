@@ -1,0 +1,42 @@
+[package]
+name = "xfinata"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+# The deliverable is the published data, not a crate. Binaries are attached to
+# GitHub Releases and the daily job downloads one; nothing here is consumed as
+# a library, so there is nothing to publish to a registry.
+publish = false
+
+[workspace]
+resolver = "2"
+members = [
+    "xtask"
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/xfina-dev/xfinata"
+homepage = "https://data.xfina.dev"
+description = "Public data backbone for Indian personal finance — fetches, archives and publishes open datasets"
+readme = "README.md"
+keywords = ["finance", "india", "data", "datasets", "csv"]
+categories = ["finance", "command-line-utilities"]
+
+[workspace.dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+thiserror = "2.0"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+thiserror = { workspace = true }

@@ -1,32 +1,20 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Rust
+/target
+**/*.rs.bk
 
-# Test binary, built with `go test -c`
-*.test
+# Wrangler
+.wrangler/
+.dev.vars
 
-# Code coverage profiles and other test artifacts
-*.out
-coverage.*
-*.coverprofile
-profile.cov
+# Build output of `xfinata site build`
+/dist
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
-go.work
-go.work.sum
-
-# env file
+# Local credentials and scratch. Nothing here is ever committed: R2 keys reach
+# the tool through the environment, and the raw corpus is 600+ MB that belongs
+# in R2, not in git.
 .env
+/scratch
+/corpus
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# macOS
+.DS_Store

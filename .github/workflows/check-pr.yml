@@ -1,0 +1,91 @@
+name: Check PR
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # One job, so there is a single check to require. The steps inside are
+  # skipped rather than the job, which keeps the required check reporting on
+  # documentation-only pull requests instead of sitting forever as "expected".
+  tool:
+    name: Tool
+    # arm64, which is free on public repositories and does the same work for
+    # less power. There is no `ubuntu-latest-arm` alias, so this label pins an
+    # image version and has to be bumped when that image is retired.
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check changes and changelog
+        id: check_changes
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          BASE=origin/${{ github.base_ref }}
+
+          # Code worth compiling and testing. xtask is developer tooling, so it
+          # has to build, but nothing it does reaches published data.
+          TEST_CHANGED=$(git diff --name-only $BASE...HEAD -- src/ xtask/ tests/ Cargo.toml Cargo.lock | grep -v -i '\.md$' || true)
+
+          # Anything a consumer of data.xfina.dev could notice: the tool that
+          # derives the numbers, the catalog that says what is published and
+          # where, and the site that serves it. tests/ and xtask/ are
+          # deliberately absent — they change nothing that ships.
+          RELEASE_CHANGED=$(git diff --name-only $BASE...HEAD -- src/ datasets.yaml site/ wrangler.jsonc Cargo.toml Cargo.lock | grep -v -i '\.md$' || true)
+
+          if [ -n "$RELEASE_CHANGED" ]; then
+            echo "Consumer-visible files modified:"
+            echo "$RELEASE_CHANGED"
+            echo "----------------------------------------"
+
+            if ! git diff --name-only $BASE...HEAD | grep -q "^CHANGELOG.md$"; then
+              echo "::error::Consumer-visible files were modified but CHANGELOG.md was not updated. Please document your changes."
+              exit 1
+            fi
+            echo "Success: CHANGELOG.md was updated!"
+          else
+            echo "No consumer-visible files modified. Changelog entry not required."
+          fi
+
+          if [ -n "$TEST_CHANGED" ]; then
+            echo "Code changed; running the full check."
+            echo "run_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No code changed; skipping build and tests."
+            echo "run_tests=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Rust
+        if: steps.check_changes.outputs.run_tests == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry and build
+        if: steps.check_changes.outputs.run_tests == 'true'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        if: steps.check_changes.outputs.run_tests == 'true'
+        run: cargo fmt --check
+
+      - name: Check for warnings
+        if: steps.check_changes.outputs.run_tests == 'true'
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run tests
+        if: steps.check_changes.outputs.run_tests == 'true'
+        run: cargo test --workspace
+
+      - name: Build
+        if: steps.check_changes.outputs.run_tests == 'true'
+        run: cargo build --workspace

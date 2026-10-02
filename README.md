@@ -21,7 +21,7 @@ Source  ──▶  Raw archive  ──▶  Parse  ──▶  Series  ──▶  
 
 | | Dataset | Frequency | Published at | Status |
 |---|---|---|---|---|
-| 💱 | SBI forex card rates (USD TT buy/sell) | Daily | `v1/fx/sbi-forex-card-usd.csv` | Raw archived daily; published once [xfina#91](https://github.com/xfina-dev/xfina/issues/91) ships |
+| 💱 | SBI forex card rates (USD TT buy/sell) | Daily | `v1/fx/sbi-forex-card-usd.csv` | **Published** |
 | 📉 | India CPI (all-India combined, general index) | Monthly | `v1/inflation/in-cpi.csv` | **Published** |
 | 🌐 | USD/INR exchange rate, from the BIS | Daily, 1973→ | `v1/fx/bis-usd-inr.csv` | **Published** |
 | 📜 | India CPI, monthly since 1957, from the IMF | Monthly | `v1/inflation/in-cpi-imf.csv` | **Published** |

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Page width matches xfina.dev**: the content column is the full 72rem (1,152 px), with the padding outside it as xfina.dev has it. It was 64 px narrower because the padding was taken out of the column.
+
 ### Added
 
 - **India CPI is published** at `v1/inflation/in-cpi.csv`: the all-India Combined general index, base 2024=100, monthly from 2013-01, from MoSPI's `Back` series up to 2024-12 and its `Current` series after. Values are exactly as MoSPI prints them (`55.10`, not `55.1`). Cross-checked against the predecessor's hand-made file: all 162 overlapping months agree.

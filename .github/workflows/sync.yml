@@ -1,0 +1,106 @@
+name: Sync
+
+on:
+  schedule:
+    # 16:00 and 22:00 IST. SBI posts its sheet during the banking day and
+    # overwrites the one URL it uses, so a day missed is a day lost; two runs
+    # give a failed afternoon a second chance the same evening.
+    - cron: "30 10,16 * * *"
+  # A merge to main takes effect on the next run rather than up to twelve hours
+  # later: new code, a catalog change, or a change to the page.
+  push:
+    branches: [ "main" ]
+    paths: [ "src/**", "datasets.yaml", "site/**", "wrangler.jsonc", "Cargo.lock" ]
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: Sync only this dataset (blank for all)
+        required: false
+        default: ""
+
+# One writer of the data branch at a time, and never cancelled part-way: a run
+# stopped between uploading and committing leaves objects the manifest does
+# not name (which the next run adopts, but there is no reason to cause it).
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    name: Sync and deploy
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/data-branch
+
+      - uses: ./.github/actions/build-tool
+
+      # The exit code is recorded rather than failing the step, so datasets
+      # that did update are still committed and deployed when one did not.
+      # It is not swallowed: the last step fails the job with it, and the
+      # failure opens an issue.
+      - name: Sync
+        id: sync
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATASET: ${{ inputs.dataset }}
+        run: |
+          set +e
+          ./target/release/xfina-data sync --data data ${DATASET:+--dataset "$DATASET"}
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Commit data
+        env:
+          CODE_SHA: ${{ github.sha }}
+        run: |
+          cd data
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed."
+            exit 0
+          fi
+          git commit -q -m "data: sync $(date -u +%Y-%m-%dT%H:%MZ)" -m "Produced by xfina-data@${CODE_SHA}."
+          git push origin HEAD:data
+
+      - name: Build site
+        run: ./target/release/xfina-data site build --data data --out dist
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      - name: Fail if any dataset did not update
+        if: steps.sync.outputs.code != '0'
+        env:
+          CODE: ${{ steps.sync.outputs.code }}
+        run: |
+          echo "::error::xfina-data sync exited with $CODE; see the Sync step for which datasets failed."
+          exit 1
+
+      # One open issue at a time: a source that is down for a week should
+      # produce one thread with a comment per run, not fourteen issues. The
+      # body links the run and nothing else; the log is where the detail is.
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create sync-failure --color B60205 --description "The scheduled sync failed" --force
+          open=$(gh issue list --label sync-failure --state open --json number --jq '.[0].number')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "Failed again: $RUN_URL"
+          else
+            gh issue create --label sync-failure --title "Sync failed" \
+              --body "A sync run failed and published data may be stale: $RUN_URL"
+          fi

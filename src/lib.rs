@@ -1,4 +1,4 @@
-//! Xfinata publishes open Indian financial datasets at [data.xfina.dev].
+//! xfina-data publishes open Indian financial datasets at [data.xfina.dev].
 //!
 //! The shape of the thing is deliberately small:
 //!
@@ -17,4 +17,10 @@
 
 #![warn(missing_docs)]
 
+pub mod catalog;
 pub mod error;
+pub mod pipeline;
+pub mod publish;
+pub mod raw;
+pub mod series;
+pub mod sources;

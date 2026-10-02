@@ -1,0 +1,104 @@
+name: Import Raw
+
+# Brings an existing archive into R2 in one pass: the predecessor's SBI PDFs,
+# or a mirror's copy of days we missed. Runs here rather than on a laptop
+# because the R2 keys exist nowhere else.
+#
+# Safe to re-run with the same inputs: files already archived are skipped, and
+# an upload that landed without its manifest row is adopted, not duplicated.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: Dataset the files belong to
+        required: true
+        default: sbi-forex-card-usd
+      repository:
+        description: Public GitHub repository holding the files
+        required: true
+        default: sakthipriyan/financial-data
+      commit:
+        description: Full 40-character commit sha to import from
+        required: true
+      path:
+        description: Directory in that repository; paths below it become keys
+        required: true
+        default: src/sbi-fx-card-rates
+      origin:
+        description: Provenance recorded for every file
+        required: true
+        default: upstream
+        type: choice
+        options: [ upstream, manual ]
+
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    name: Import into the raw archive
+    runs-on: ubuntu-24.04-arm
+    steps:
+      # A branch name would move, and every manifest row's source_url would
+      # then point at bytes other than the ones archived. Only a commit pins.
+      - name: Require a pinned commit
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          if ! [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::commit must be a full 40-character sha, got '$COMMIT'"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/data-branch
+
+      - uses: ./.github/actions/build-tool
+
+      - name: Fetch the files
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.commit }}
+          path: upstream
+          sparse-checkout: ${{ inputs.path }}
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Import
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATASET: ${{ inputs.dataset }}
+          REPOSITORY: ${{ inputs.repository }}
+          COMMIT: ${{ inputs.commit }}
+          SOURCE_PATH: ${{ inputs.path }}
+          ORIGIN: ${{ inputs.origin }}
+        run: |
+          ./target/release/xfina-data raw import --data data \
+            --dataset "$DATASET" \
+            --from "upstream/$SOURCE_PATH" \
+            --source-url-base "https://github.com/$REPOSITORY/raw/$COMMIT/$SOURCE_PATH" \
+            --origin "$ORIGIN"
+
+      - name: Commit the manifest
+        env:
+          DATASET: ${{ inputs.dataset }}
+          REPOSITORY: ${{ inputs.repository }}
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          cd data
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing new to record."
+            exit 0
+          fi
+          git commit -q -m "raw: import $DATASET from $REPOSITORY@$COMMIT"
+          git push origin HEAD:data

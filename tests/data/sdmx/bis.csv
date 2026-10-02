@@ -1,0 +1,5 @@
+FREQ,REF_AREA,CURRENCY,COLLECTION,UNIT_MULT,DECIMALS,AVAILABILITY,TITLE,TIME_PERIOD,OBS_VALUE,OBS_STATUS,OBS_PRE_BREAK,OBS_CONF
+D,IN,INR,A,0,6,A, Exchange rates against USD India - Indian rupee - Daily - Average of observations through period,1973-02-12,NaN,M,,F
+D,IN,INR,A,0,6,A, Exchange rates against USD India - Indian rupee - Daily - Average of observations through period,2026-09-25,95.817329,A,,F
+D,IN,INR,A,0,6,A, Exchange rates against USD India - Indian rupee - Daily - Average of observations through period,2026-09-28,95.983037,A,,F
+D,IN,INR,A,0,6,A, Exchange rates against USD India - Indian rupee - Daily - Average of observations through period,2026-09-29,95.985029,A,,F

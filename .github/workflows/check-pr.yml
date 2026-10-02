@@ -34,7 +34,7 @@ jobs:
 
           # Code worth compiling and testing. xtask is developer tooling, so it
           # has to build, but nothing it does reaches published data.
-          TEST_CHANGED=$(git diff --name-only $BASE...HEAD -- src/ xtask/ tests/ Cargo.toml Cargo.lock | grep -v -i '\.md$' || true)
+          TEST_CHANGED=$(git diff --name-only $BASE...HEAD -- src/ xtask/ tests/ datasets.yaml Cargo.toml Cargo.lock | grep -v -i '\.md$' || true)
 
           # Anything a consumer of data.xfina.dev could notice: the tool that
           # derives the numbers, the catalog that says what is published and
@@ -64,6 +64,17 @@ jobs:
             echo "run_tests=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Raw documents belong in R2. A PDF in the tree would be a second copy
+      # of the archive, outside its manifest, and permanent in git history.
+      - name: Refuse committed PDFs
+        run: |
+          PDFS=$(git ls-files -- '*.pdf' '*.PDF')
+          if [ -n "$PDFS" ]; then
+            echo "::error::PDFs are archived in R2, not committed:"
+            echo "$PDFS"
+            exit 1
+          fi
+
       - name: Install Rust
         if: steps.check_changes.outputs.run_tests == 'true'
         uses: dtolnay/rust-toolchain@stable
@@ -89,3 +100,21 @@ jobs:
       - name: Build
         if: steps.check_changes.outputs.run_tests == 'true'
         run: cargo build --workspace
+
+      # A published path is a promise to code we cannot see, so the catalog is
+      # checked against the one on the base branch as well as against its own
+      # rules. The tool takes a file rather than a git ref on purpose: it has
+      # no business knowing what git is, so materialising the base revision is
+      # CI's job.
+      - name: Validate the catalog
+        if: steps.check_changes.outputs.run_tests == 'true'
+        run: |
+          BASE_CATALOG="$RUNNER_TEMP/base-datasets.yaml"
+          if git show "origin/${{ github.base_ref }}:datasets.yaml" > "$BASE_CATALOG" 2>/dev/null; then
+            cargo run --quiet -- config validate --config datasets.yaml --base "$BASE_CATALOG"
+          else
+            # The first pull request to add the catalog has nothing to
+            # compare against, and that is not a failure.
+            echo "No datasets.yaml on ${{ github.base_ref }} yet; checking its own rules only."
+            cargo run --quiet -- config validate --config datasets.yaml
+          fi

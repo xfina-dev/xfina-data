@@ -2,7 +2,7 @@
 name = "xtask"
 version.workspace = true
 edition.workspace = true
-description = "Release and maintenance automation for the xfinata workspace"
+description = "Release and maintenance automation for the xfina-data workspace"
 license.workspace = true
 repository.workspace = true
 publish = false

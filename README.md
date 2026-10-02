@@ -1,9 +1,9 @@
-# [xfinata](https://github.com/xfina-dev/xfinata)
+# [xfina-data](https://github.com/xfina-dev/xfina-data)
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 [![Data](https://img.shields.io/badge/data-data.xfina.dev-1f6f5f.svg)](https://data.xfina.dev)
 
-**Xfinata** is the public data backbone behind the Xfina projects: it fetches open Indian financial data, keeps every source document, and publishes clean time series that anyone can read.
+**xfina-data** is the public data backbone behind the Xfina projects: it fetches open Indian financial data, keeps every source document, and publishes clean time series that anyone can read.
 
 ```
 Source  ──▶  Raw archive  ──▶  Parse  ──▶  Series  ──▶  data.xfina.dev
@@ -21,51 +21,70 @@ Source  ──▶  Raw archive  ──▶  Parse  ──▶  Series  ──▶  
 
 | | Dataset | Frequency | Published at | Status |
 |---|---|---|---|---|
-| 💱 | SBI forex card rates (USD TT buy/sell) | Daily | `v1/fx/sbi-forex-card-usd.csv` | **In progress** |
-| 📉 | India CPI (all-India combined, general index) | Monthly | `v1/inflation/in-cpi.csv` | **In progress** |
+| 💱 | SBI forex card rates (USD TT buy/sell) | Daily | `v1/fx/sbi-forex-card-usd.csv` | Raw archived daily; published once [xfina#91](https://github.com/xfina-dev/xfina/issues/91) ships |
+| 📉 | India CPI (all-India combined, general index) | Monthly | `v1/inflation/in-cpi.csv` | **Published** |
+| 🌐 | USD/INR exchange rate, from the BIS | Daily, 1973→ | `v1/fx/bis-usd-inr.csv` | **Published** |
+| 📜 | India CPI, monthly since 1957, from the IMF | Monthly | `v1/inflation/in-cpi-imf.csv` | **Published** |
 
-Everything is CSV, with one `metadata.json` describing every series: its schema, source, licence, row count and last update.
+Every published dataset has a preview page at `data.xfina.dev/datasets/<id>/`, with a chart or a calendar view (a GitHub-style year of days for daily series, a years × months grid for monthly ones), configured by the `preview` block of its catalog entry.
+
+Everything is CSV, with one `v1/metadata.json` describing every series: its schema, source, licence, row count, range, sha256 and last update. Each dataset's raw manifest, `v1/manifests/<id>.csv`, lists every source document with its sha256, fetch time, source URL and origin; the document itself is at `https://raw.data.xfina.dev/<key>`.
 
 ## Architecture
 
 ```
-xfinata/
+xfina-data/
+  datasets.yaml   the catalog: what exists, where it goes, what it promises
   src/
-    catalog/    datasets.yaml — what exists, where it goes, what it promises
-    series/     records, merge, invariants, CSV
-    sources/    fetching: SBI, MoSPI
-    rawstore/   the immutable archive and its manifest
-    publish/    the built site
-  xtask/        release and maintenance tasks
+    catalog/      loading and validating the catalog
+    sources/      per source: fetch (network, clock) and derive (bytes only)
+    raw/          the immutable archive, its manifest, and the R2 store
+    series/       rows, merge, invariants, CSV
+    pipeline.rs   sync, backfill, raw import, raw put
+    publish.rs    metadata.json and the site
+  site/           landing page template and Cloudflare headers
+  xtask/          release and maintenance tasks
 ```
 
-Document parsing is **not** here. Formats live in [Xfina](https://github.com/sakthipriyan/xfina), which this crate depends on: it hands Xfina the bytes and gets structured records back. Xfinata's job is everything around that — fetching, archiving, merging into a series and publishing.
+Two branches: `main` holds the code, and `data` holds only what is published — series, `metadata.json` and manifests — so its history is the audit trail of every number that ever changed.
+
+Document parsing is **not** here. Formats live in [Xfina](https://github.com/xfina-dev/xfina), which this crate depends on: it hands Xfina the bytes and gets structured records back. xfina-data's job is everything around that — fetching, archiving, merging into a series and publishing.
 
 ## How it runs
 
-The tool is not a local utility. **It runs in GitHub Actions, on a schedule**, and what it does there is update published data:
+The tool is not a local utility. **It runs in GitHub Actions**, and what it does there is update published data. `Sync` runs at 16:00 and 22:00 IST, and on every merge to `main`:
 
 ```yaml
-# sync.yml, once a day
-- run: gh release download "$XFINATA_VERSION" --pattern xfinata      # pinned, not built
-- run: xfinata sync --config datasets.yaml                           # fetch, archive, rebuild
-- run: xfinata site build --out dist                                 # render
-- uses: cloudflare/wrangler-action@v4                                # publish
+- uses: ./.github/actions/data-branch                 # the data branch, in ./data
+- run: cargo build --release --locked                 # the tool, from this commit
+- run: xfina-data sync --data data                       # fetch, archive to R2, rebuild
+- run: git -C data commit && git -C data push         # "Produced by xfina-data@<sha>"
+- run: xfina-data site build --data data --out dist      # page, headers, CSVs
+- uses: cloudflare/wrangler-action@v4                 # deploy data.xfina.dev
 ```
 
-The binary is downloaded rather than compiled, so a data update never waits on a build, and every run records which released version produced it. Because nothing runs off a laptop, the R2 write credentials live only in GitHub Secrets.
+Each data commit names the code commit that produced it. A dataset that fails does not hold back the others, but the run still ends red and opens (or comments on) a `sync-failure` issue. `Import Raw` is a manual workflow that brings an existing archive into R2 from a public repository at a pinned commit.
+
+R2 credentials live only in GitHub Secrets (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_ACCOUNT_ID`, plus `CLOUDFLARE_API_TOKEN` for deploying). Reading the archive needs nothing, so anyone can re-derive a series:
+
+```bash
+git clone -b data https://github.com/xfina-dev/xfina-data data
+xfina-data backfill --data data --dataset in-cpi --check
+```
 
 The full command surface:
 
 ```
-xfinata sync            --config datasets.yaml [--dataset id] [--dry-run]
-xfinata backfill        --dataset id [--from-dir path]
-xfinata raw put         --dataset id --origin manual <file>
-xfinata raw import      --dataset id --from <dir> --origin upstream
-xfinata reconcile       --dataset id
-xfinata config validate [--base <ref>]
-xfinata site build      --out dist
+xfina-data sync            [--dataset id] [--dry-run]
+xfina-data backfill        --dataset id [--from-dir path] [--check]
+xfina-data raw put         --dataset id --name <key> --source-url <url> [--origin manual] <file>
+xfina-data raw import      --dataset id --from <dir> --source-url-base <url> --origin upstream
+xfina-data reconcile       --dataset id
+xfina-data config validate [--base <file>]
+xfina-data site build      [--site site] [--out dist]
 ```
+
+Every command takes `--config` (default `datasets.yaml`) and `--data` (default `data`); `--local-archive <dir>` swaps R2 for a local directory, for working without credentials.
 
 ## Development
 
@@ -79,7 +98,7 @@ All three are gates in `Check PR`, which carries the correctness burden precisel
 
 ## Status
 
-Early. The repository skeleton and CLI surface are in place; the datasets above are being brought up one at a time.
+Early. The pipeline runs end to end; datasets are being brought up one at a time.
 
 ## License
 

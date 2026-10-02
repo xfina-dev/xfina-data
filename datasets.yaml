@@ -1,0 +1,159 @@
+# The dataset catalog: what this project publishes, where it comes from, and
+# what each series promises its consumers.
+#
+# A `published` dataset's path, columns and frequency are frozen — CI refuses a
+# pull request that changes them, because people we cannot see have written
+# code against them. A `planned` dataset is free to change until it goes live.
+
+version: 1
+
+# The oldest tool version that understands this file. The nightly job runs a
+# pinned release binary, so this is what turns "the catalog needs newer code"
+# into one clear refusal at startup instead of a confusing failure at 02:00.
+min_tool_version: 0.1.0
+
+# Every raw document lands here before anything is derived from it, and is
+# never overwritten. The bucket is public through the custom domain, so a
+# source that may not be redistributed must never be archived in it.
+archive:
+  bucket: xfina-data-raw
+  public_url: https://raw.data.xfina.dev
+
+datasets:
+  - id: sbi-forex-card-usd
+    title: SBI forex card rates, USD TT buy and TT sell
+    frequency: daily
+    status: planned
+    public: true
+    licence: Published by State Bank of India as a public reference document
+    source:
+      kind: sbi-forex-card
+      # SBI overwrites one URL every day, which is why the archive matters:
+      # a day we miss is gone from the source forever.
+      urls:
+        - https://sbi.bank.in/documents/16012/1400784/FOREX_CARD_RATES.pdf
+        - https://bank.sbi/documents/16012/1400784/FOREX_CARD_RATES.pdf
+      currency: USD
+    raw:
+      prefix: sbi/forex-card-rates
+      origin: auto
+      # sahilgupta/sbi-fx-ratekeeper (MIT) keeps its own copy of the same
+      # PDFs, so a day lost to a failed run can still be recovered.
+      recover_from: upstream-sbi-fx-ratekeeper
+    output:
+      path: v1/fx/sbi-forex-card-usd.csv
+      columns: [date, tt_buy, tt_sell]
+    preview:
+      group: USD/INR Rates
+      summary: >-
+        What SBI charges to convert between rupees and US dollars on a forex
+        card, per the rate sheet it publishes each banking day. TT buy is what
+        a dollar fetches; TT sell is what a dollar costs.
+      unit: INR per USD
+      lines:
+        - { column: tt_buy, label: TT buy }
+        - { column: tt_sell, label: TT sell }
+
+  - id: in-cpi
+    title: India CPI, all-India combined, general index
+    frequency: monthly
+    status: published
+    public: true
+    licence: Ministry of Statistics and Programme Implementation, open data
+    source:
+      kind: mospi-cpi
+      base_year: "2024"
+      # The current series alone starts at the base year. `Back` is what
+      # carries the index back to 2013 on the same base.
+      series: [Back, Current]
+      first_year: 2013
+      # All India, Combined, CPI (General). The codes are MoSPI's own, from
+      # /api/cpi/getCpiFilterByLevelAndBaseYear.
+      state_code: 1
+      sector_code: 3
+      division_code: "00"
+    raw:
+      prefix: mospi/cpi
+      origin: auto
+    output:
+      path: v1/inflation/in-cpi.csv
+      columns: [month, index]
+    preview:
+      group: Inflation
+      summary: >-
+        India's consumer price index for all of India, rural and urban
+        combined, as MoSPI publishes it on its 2024 base. Divide two months'
+        values to get the inflation between them.
+      unit: Index, 2024 = 100
+      lines:
+        - { column: index, label: CPI }
+      views: [year-on-year]
+
+  - id: bis-usd-inr
+    title: USD/INR exchange rate, daily, from the BIS
+    frequency: daily
+    status: published
+    public: true
+    licence: >-
+      Source: BIS (data.bis.org). BIS statistics may be reproduced freely with
+      this attribution and at no additional charge, under the BIS terms of
+      permitted use: https://data.bis.org/help/legal
+    source:
+      kind: sdmx
+      provider: bis
+      flow: WS_XRU
+      version: "1.0"
+      key: D.IN.INR.A
+      start: "1973-01-01"
+      # The full history is ~2 MB. After the first run, two months back is
+      # enough to pick up a revision without archiving it all again daily.
+      refetch_days: 60
+    raw:
+      prefix: bis/ws-xru
+      origin: auto
+    output:
+      path: v1/fx/bis-usd-inr.csv
+      columns: [date, inr_per_usd]
+    preview:
+      group: USD/INR Rates
+      summary: >-
+        Rupees per US dollar on each business day since 1973, as the Bank for
+        International Settlements publishes it. A reference rate rather than a
+        price anyone transacts at; SBI's card rates are what a transfer costs.
+      unit: INR per USD
+      lines:
+        - { column: inr_per_usd, label: USD/INR }
+
+  - id: in-cpi-imf
+    title: India CPI, monthly since 1957, from the IMF
+    frequency: monthly
+    status: published
+    public: true
+    licence: >-
+      Source: International Monetary Fund, Consumer Price Index (CPI) dataset,
+      https://data.imf.org. Reproduced unaltered under the IMF Copyright and
+      Usage terms for statistical data: https://www.imf.org/en/about/copyright-and-terms
+    source:
+      kind: sdmx
+      provider: imf
+      flow: CPI
+      version: "5.0.0"
+      key: IND.CPI._T.IX.M
+      start: "1957-01"
+    raw:
+      prefix: imf/cpi
+      origin: auto
+    output:
+      path: v1/inflation/in-cpi-imf.csv
+      columns: [month, index]
+    preview:
+      group: Inflation
+      summary: >-
+        India's consumer price index back to 1957, which the IMF builds by
+        linking India's earlier national series onto the 2024 = 100 base. It
+        matches MoSPI's index from 2025; before 2013, it is the only monthly
+        India CPI here.
+      unit: Index, 2024 = 100
+      lines:
+        - { column: index, label: CPI }
+      views: [year-on-year]

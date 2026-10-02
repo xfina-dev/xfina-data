@@ -1,4 +1,4 @@
-# Contributing to Xfinata
+# Contributing to xfina-data
 
 Read [`AGENTS.md`](AGENTS.md) first. It holds the rules this project is built on, and the top one — never publish a number you cannot reproduce — is not negotiable.
 
@@ -53,7 +53,7 @@ Releasing from `main` directly is refused, and so is a tag that is not on `main`
 When a published number turns out to be wrong:
 
 1. Fix the parser, in whichever repository it lives.
-2. Re-derive from the archived raw with `xfinata backfill`. Never edit a published file by hand.
+2. Re-derive from the archived raw with `xfina-data backfill`. Never edit a published file by hand.
 3. Note it in the changelog, including what was wrong and which rows moved. People have already downloaded the old numbers.
 
 The raw file that produced the wrong value stays in the archive untouched. It is the evidence.

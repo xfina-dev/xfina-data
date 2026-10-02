@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xfina Data</title>
+<meta name="description" content="Open Indian financial datasets as plain CSV, each value traceable to an archived source document.">
+<link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/theme.js"></script>
+</head>
+<body>
+<main class="stack">
+<!-- HEADER -->
+
+<!-- GROUPS -->
+
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">For developers</h2>
+    </div>
+    <div class="card-content prose">
+      <p>Each series is one CSV with its full history, at a URL that does not change:</p>
+<pre><!-- ENDPOINTS --></pre>
+      <p><a href="/v1/metadata.json"><code>https://data.xfina.dev/v1/metadata.json</code></a> lists every
+      series with its path, columns, source, licence, row count, date range, sha256 and last update;
+      read it to discover what is available and whether anything is new.</p>
+      <p>Paths and columns under <code>/v1/</code> are only ever added to, never renamed or removed.</p>
+    </div>
+  </section>
+
+  <footer>Built by <a href="https://github.com/xfina-dev/xfina-data">xfina-data</a>. Each dataset's
+  source and licence is on its page and in <code>metadata.json</code>.</footer>
+</main>
+</body>
+</html>

@@ -1,6 +1,6 @@
 //! Chores that are not part of the shipped tool.
 //!
-//! The split matters: `xfinata` is downloaded by the nightly job and runs
+//! The split matters: `xfina-data` is what the scheduled job builds and runs
 //! against production data, so it carries only what that job needs. Releasing,
 //! and checking a parser against an archive too large to commit, are developer
 //! tasks and live here, reached through `cargo xtask`.
@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "xtask", about = "Release and maintenance tasks for xfinata")]
+#[command(name = "xtask", about = "Release and maintenance tasks for xfina-data")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

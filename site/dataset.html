@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}} · Xfina Data</title>
+<meta name="description" content="{{SUMMARY}}">
+<link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/theme.js"></script>
+</head>
+<body>
+<main class="stack">
+<!-- HEADER -->
+
+  <section class="card">
+    <div class="card-header">
+      <p class="crumb"><a href="/">All datasets</a> / <code>{{ID}}</code></p>
+      <h1 class="card-title" style="margin-top: 8px">{{TITLE}}</h1>
+      <p class="card-description">{{SUMMARY}}</p>
+      <div class="facts" style="margin-top: 12px">{{FACTS}}</div>
+    </div>
+
+    <div class="toolbar">
+      <div>
+        <div class="segmented" role="group" aria-label="Show as">
+          <button type="button" class="btn btn-outline" data-tab="chart" aria-pressed="true">Chart</button>
+          <button type="button" class="btn btn-outline" data-tab="calendar" aria-pressed="false">Calendar</button>
+        </div>
+        <div class="segmented" role="group" aria-label="Values" id="views" hidden></div>
+        <div class="segmented" role="group" aria-label="Colour by" id="modes" hidden></div>
+      </div>
+      <div>
+        <div class="segmented" role="group" aria-label="Range" id="ranges"></div>
+        <div class="segmented" role="group" aria-label="Span" id="spans" hidden></div>
+        <div class="year-nav" id="year-nav" hidden>
+          <button type="button" class="btn btn-outline btn-icon" id="prev-year" title="Previous year">‹</button>
+          <span id="year-label"></span>
+          <button type="button" class="btn btn-outline btn-icon" id="next-year" title="Next year">›</button>
+        </div>
+        <a class="btn btn-sm" href="/{{CSV_PATH}}" download>Download CSV</a>
+      </div>
+    </div>
+
+    <div class="card-content">
+      <div id="chart-panel">
+        <div id="chart" role="img" aria-label="{{TITLE}}, chart"></div>
+        <p class="note" id="chart-note" hidden></p>
+      </div>
+      <div id="calendar-panel" hidden>
+        <div class="calendar-wrap"><div id="calendar" role="img" aria-label="{{TITLE}}, calendar"></div></div>
+        <p class="note" id="calendar-note"></p>
+      </div>
+      <p class="note" id="status" role="status">Loading…</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-content">
+      <dl class="about">
+        <dt>CSV</dt><dd><a href="/{{CSV_PATH}}"><code>https://data.xfina.dev/{{CSV_PATH}}</code></a></dd>
+        <dt>Columns</dt><dd><code>{{COLUMNS}}</code></dd>
+        <dt>Source</dt><dd>{{SOURCE}}</dd>
+        <dt>Licence</dt><dd>{{LICENCE}}</dd>
+        <dt>Raw documents</dt><dd><a href="/{{MANIFEST_PATH}}">{{RAW_FILES}} archived files</a>, each with its sha256, fetch time and source URL</dd>
+      </dl>
+    </div>
+  </section>
+</main>
+<script id="config" type="application/json">{{CONFIG_JSON}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/6.1.0/echarts.min.js"
+  integrity="sha512-Uyq/AgtqFM4vT+unIGTDr4wMJDTUK9O5w2PXMQeBCSR8koqHpVz+qBmcQ+9Oeo5H+EmvT4pp/5QrsqhIbyjHTQ=="
+  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="/assets/preview.js"></script>
+</body>
+</html>

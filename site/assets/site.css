@@ -1,0 +1,185 @@
+/* data.xfina.dev — one stylesheet for every page.
+ *
+ * Follows xfina.dev: the same zinc tokens, radius and button variants as its
+ * shadcn theme, written as plain CSS because this site has no build step.
+ * The two chart series colours are not theme tokens: they are validated for
+ * colour-blind separation against both surfaces, and must be re-validated if
+ * either changes. */
+
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --border: #e4e4e7;
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+  --accent: #f4f4f5;
+  --ring: #09090b;
+  --radius: 0.5rem;
+  --series-1: #2471a3;
+  --series-2: #eb6834;
+  /* Calendar colour ramps. Diverging: blue for a fall, red for a rise, a grey
+     midpoint for no change, equal steps each side. Sequential: one blue,
+     light to dark, flipped in dark mode so "more" is always "brighter
+     against the surface". */
+  --div: #184f95,#6da7ec,#f0efec,#ec8381,#952020;
+  --seq: #cde2fb,#86b6ef,#3987e5,#1c5cab,#0d366b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #09090b;
+    --foreground: #fafafa;
+    --card: #09090b;
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+    --border: #27272a;
+    --primary: #fafafa;
+    --primary-foreground: #18181b;
+    --accent: #27272a;
+    --ring: #d4d4d8;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --div: #86b6ef,#2f5f9c,#383835,#9c3a38,#f08c8a;
+    --seq: #0d366b,#1c5cab,#3987e5,#86b6ef,#cde2fb;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #09090b;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --border: #27272a;
+  --primary: #fafafa;
+  --primary-foreground: #18181b;
+  --accent: #27272a;
+  --ring: #d4d4d8;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --div: #86b6ef,#2f5f9c,#383835,#9c3a38,#f08c8a;
+  --seq: #0d366b,#1c5cab,#3987e5,#86b6ef,#cde2fb;
+}
+
+* { box-sizing: border-box; border-color: var(--border); }
+/* `hidden` must win over the display rules below. */
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 72rem; margin: 0 auto; padding: 32px; }
+@media (max-width: 640px) { main { padding: 24px 16px; } }
+a { color: inherit; text-underline-offset: 4px; }
+p { margin: 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.875em; overflow-wrap: anywhere; }
+.muted { color: var(--muted-foreground); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.stack > * + * { margin-top: 32px; }
+
+/* Header, as on xfina.dev: logo and title on the left, outline buttons on the right. */
+.site-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+@media (max-width: 767px) { .site-header { flex-direction: column; } }
+.brand { display: flex; align-items: flex-start; gap: 20px; }
+.logo { flex-shrink: 0; transition: opacity 0.15s; }
+.logo:hover { opacity: 0.8; }
+.logo img { display: block; width: 64px; height: 64px; }
+.title { text-decoration: none; }
+.site-name { display: block; font-size: 1.875rem; line-height: 2.25rem; font-weight: 700; letter-spacing: -0.025em; }
+.tagline { color: var(--muted-foreground); margin-top: 8px; line-height: 1.625; }
+.header-actions { display: flex; align-items: center; gap: 12px; }
+
+/* Buttons: xfina's variants and sizes. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 16px; border-radius: calc(var(--radius) - 2px);
+  font: 500 0.875rem/1 inherit; font-family: inherit; white-space: nowrap;
+  text-decoration: none; cursor: pointer; border: 1px solid transparent;
+  background: var(--primary); color: var(--primary-foreground);
+  transition: background-color 0.15s, color 0.15s;
+}
+.btn:hover { background: color-mix(in srgb, var(--primary) 90%, transparent); }
+.btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.btn:disabled { opacity: 0.5; pointer-events: none; }
+.btn-outline { background: var(--background); color: var(--foreground); border-color: var(--border); }
+.btn-outline:hover { background: var(--accent); }
+.btn-sm { height: 36px; padding: 0 12px; }
+.btn-icon { width: 40px; padding: 0; }
+.btn svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* The theme button shows the theme it switches to. */
+.icon-moon { display: none; }
+:root[data-theme="light"] .icon-sun { display: none; }
+:root[data-theme="light"] .icon-moon { display: block; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .icon-sun { display: none; }
+  :root:not([data-theme="dark"]) .icon-moon { display: block; }
+}
+
+/* A segmented control: outline buttons, the selected one filled. */
+.segmented { display: inline-flex; }
+.segmented .btn { height: 36px; padding: 0 12px; border-radius: 0; margin-left: -1px; }
+.segmented .btn:first-child { border-radius: calc(var(--radius) - 2px) 0 0 calc(var(--radius) - 2px); margin-left: 0; }
+.segmented .btn:last-child { border-radius: 0 calc(var(--radius) - 2px) calc(var(--radius) - 2px) 0; }
+.segmented .btn[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); position: relative; }
+
+/* Cards, as shadcn draws them. */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.card-header { padding: 24px 24px 0; }
+.card-content { padding: 24px; }
+.card-title { font-size: 1.5rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.025em; margin: 0; }
+.card-description { color: var(--muted-foreground); font-size: 0.875rem; margin-top: 6px; }
+.badge {
+  display: inline-block; font: 600 0.7rem/1 ui-monospace, Menlo, monospace; padding: 4px 6px;
+  border-radius: calc(var(--radius) - 4px); background: var(--muted); color: var(--muted-foreground);
+  vertical-align: middle; margin-left: 8px;
+}
+
+/* Dataset cards on the index, grouped under headings. */
+.group-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.025em; margin: 0 0 16px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+.cards .card { display: flex; flex-direction: column; }
+.cards .card-content { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.875rem; color: var(--muted-foreground); }
+.facts b { color: var(--foreground); font-weight: 500; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+
+/* The dataset page. */
+.crumb { font-size: 0.875rem; color: var(--muted-foreground); }
+.crumb a { text-decoration: none; }
+.crumb a:hover { color: var(--foreground); }
+.toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 24px 24px 0; }
+.toolbar > div { display: flex; flex-wrap: wrap; gap: 12px; }
+#chart { width: 100%; height: 420px; }
+@media (max-width: 640px) { #chart { height: 320px; } .toolbar, .card-content { padding-left: 16px; padding-right: 16px; } }
+.note { font-size: 0.875rem; color: var(--muted-foreground); margin-top: 8px; }
+.calendar-wrap { overflow-x: auto; }
+#calendar { width: 100%; min-width: 760px; }
+.year-nav { display: inline-flex; align-items: center; gap: 4px; }
+.year-nav span { min-width: 48px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+table { border-collapse: collapse; width: 100%; font-size: 0.875rem; }
+th, td { height: 40px; padding: 0 12px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+th { color: var(--muted-foreground); font-weight: 500; }
+tbody tr:hover { background: color-mix(in srgb, var(--muted) 50%, transparent); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.pager { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; font-size: 0.875rem; }
+
+dl.about { display: grid; grid-template-columns: max-content 1fr; gap: 10px 24px; margin: 0; font-size: 0.875rem; }
+dl.about dt { color: var(--muted-foreground); }
+dl.about dd { margin: 0; overflow-wrap: anywhere; }
+dl.about a { text-decoration: underline; }
+@media (max-width: 640px) { dl.about { grid-template-columns: 1fr; gap: 2px; } dl.about dd { margin-bottom: 10px; } }
+
+.prose { font-size: 0.875rem; color: var(--muted-foreground); }
+.prose > * + * { margin-top: 12px; }
+.prose a, .prose code { color: var(--foreground); }
+.prose ul { padding-left: 20px; margin-bottom: 0; }
+pre { background: var(--muted); padding: 12px 14px; border-radius: calc(var(--radius) - 2px); overflow-x: auto; color: var(--foreground); }
+footer { font-size: 0.875rem; color: var(--muted-foreground); }
+footer a { text-decoration: underline; }

@@ -6,8 +6,14 @@
 .wrangler/
 .dev.vars
 
-# Build output of `xfinata site build`
+# Build output of `xfina-data site build`
 /dist
+
+# Source documents live in R2, never in git: the archive is 600+ MB and grows
+# daily, and a copy here would be a second, unversioned archive. Check PR
+# also refuses a pull request that tracks one.
+*.pdf
+*.PDF
 
 # Local credentials and scratch. Nothing here is ever committed: R2 keys reach
 # the tool through the environment, and the raw corpus is 600+ MB that belongs

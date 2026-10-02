@@ -1,6 +1,6 @@
-# Xfinata — Agent Context & Guidelines
+# xfina-data — Agent Context & Guidelines
 
-Xfinata publishes open Indian financial datasets at [data.xfina.dev](https://data.xfina.dev), with the raw source documents kept at `raw.data.xfina.dev`. Other people's tools read these files. That is the whole job, and it is what every rule below protects.
+xfina-data publishes open Indian financial datasets at [data.xfina.dev](https://data.xfina.dev), with the raw source documents kept at `raw.data.xfina.dev`. Other people's tools read these files. That is the whole job, and it is what every rule below protects.
 
 ## TOP PRIORITY: never publish a number you cannot reproduce
 
@@ -36,6 +36,7 @@ This repository is **public**, and the pipeline it drives holds write access to 
 14. **Errors, never silent skips.** No `|| true`, no swallowed failures, no "continue on error". A dataset that did not update must say so loudly.
 15. **Document parsing lives in Xfina, not here.** This crate fetches, archives, merges and publishes. When a document format needs work, it is a change to Xfina.
 16. **Xfina is a published dependency, never a path dependency.** Needing an unreleased parser change means cutting an Xfina release first — the same rule Xsteer follows, for the same reason: what we build against is what other people can build against.
+17. **Every upload goes through `Store::put_new`.** It writes with `If-None-Match: *`, so the bucket itself refuses an overwrite; it takes the content type as a required argument, because the S3 API otherwise stores a PDF as `application/octet-stream`; and it sets `Cache-Control: public, max-age=31536000, immutable`, because R2's four-hour default only costs reads for an object that can never change. No other code path writes to the archive.
 
 ## Conventions
 
@@ -49,6 +50,7 @@ This repository is **public**, and the pipeline it drives holds write access to 
 
 - **Snapshot tests are the house pattern:** inputs in a file, recorded output in a sibling file, re-recorded with `UPDATE_EXPECTED=1 cargo test`. Never re-record to make a failing test pass without first understanding why the numbers moved.
 - **Invariant tests sit alongside them:** properties that hold whatever the numbers are — dates strictly ascending, no duplicate keys, `tt_sell > tt_buy`, no gaps in a monthly sequence.
+- **No PDFs in the repository.** Source documents live in R2 and nowhere else; `.gitignore` and Check PR both refuse one. Tests that need rate sheets read them from the directory `SBI_SHEETS` names and skip cleanly when it is unset. The parser itself is tested in Xfina, against Xfina's fixtures.
 - **The full archive is not in CI.** `cargo xtask parity` checks a parser against hundreds of megabytes of raw documents and is run locally, pointing at a directory that may be absent and skipping cleanly when it is.
 
 ## Build

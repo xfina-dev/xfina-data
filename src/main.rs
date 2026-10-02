@@ -1,16 +1,24 @@
-//! The `xfinata` command line tool.
+//! The `xfina-data` command line tool.
 //!
 //! Every subcommand here is reachable from the nightly job or from a laptop;
 //! there is no separate "admin" path. What the job does on a schedule is what
-//! a person can do by hand, with the same flags and the same validation.
+//! a person can do by hand, with the same flags and the same validation —
+//! except that writing to the archive needs R2 credentials, which only exist
+//! in GitHub Actions.
+
+use std::path::PathBuf;
 
 use anyhow::{bail, Result};
-use clap::{Parser, Subcommand, ValueEnum};
-use std::path::PathBuf;
+use chrono::Utc;
+use clap::{Args, Parser, Subcommand};
+use xfina_data::catalog::{validate, Catalog, Origin};
+use xfina_data::pipeline::{self, DataDir};
+use xfina_data::publish;
+use xfina_data::raw::store::{Public, Store};
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "xfinata",
+    name = "xfina-data",
     about = "Fetch, archive and publish open Indian financial datasets",
     version
 )]
@@ -19,19 +27,36 @@ struct Cli {
     command: Commands,
 }
 
+/// Where the catalog is, and the data directory a command works in.
+#[derive(Args, Debug)]
+struct Paths {
+    /// The dataset catalog
+    #[arg(long, default_value = "datasets.yaml")]
+    config: PathBuf,
+
+    /// The published tree: series, metadata.json and raw manifests
+    #[arg(long, default_value = "data")]
+    data: PathBuf,
+
+    /// Archive into, and read raw files from, a local directory laid out like
+    /// the bucket instead of R2. For working without credentials, which is
+    /// everywhere except GitHub Actions.
+    #[arg(long)]
+    local_archive: Option<PathBuf>,
+}
+
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Fetch what is due, archive it, and rebuild the series it feeds
     Sync {
-        /// The dataset catalog
-        #[arg(long, default_value = "datasets.yaml")]
-        config: PathBuf,
+        #[command(flatten)]
+        paths: Paths,
 
-        /// Sync only this dataset, whether or not it is due
+        /// Sync only this dataset
         #[arg(long)]
         dataset: Option<String>,
 
-        /// Do everything except write: no upload, no commit, no deploy
+        /// Fetch and derive, but upload nothing and write nothing
         #[arg(long)]
         dry_run: bool,
     },
@@ -42,13 +67,22 @@ enum Commands {
     /// never change, so improving the parser and rebuilding is always
     /// available and never needs the source to still be serving them.
     Backfill {
+        #[command(flatten)]
+        paths: Paths,
+
         /// The dataset to rebuild
         #[arg(long)]
         dataset: String,
 
-        /// Read raw files from a local directory instead of the archive
+        /// Read raw files from a local copy of the archive instead of the
+        /// public URL
         #[arg(long)]
         from_dir: Option<PathBuf>,
+
+        /// Write nothing; fail if the published series differs from what the
+        /// archive derives
+        #[arg(long)]
+        check: bool,
     },
 
     /// Work with the raw archive directly
@@ -75,11 +109,22 @@ enum Commands {
 enum RawCommands {
     /// Archive one file that could not be fetched automatically
     Put {
+        #[command(flatten)]
+        paths: Paths,
+
         /// The dataset it belongs to
         #[arg(long)]
         dataset: String,
 
-        /// Where this file came from
+        /// Its key below the dataset's raw prefix, e.g. `2026/2026-09-19.pdf`
+        #[arg(long)]
+        name: String,
+
+        /// Where these exact bytes were obtained from
+        #[arg(long)]
+        source_url: String,
+
+        /// How it reached us
         #[arg(long, value_enum, default_value_t = Origin::Manual)]
         origin: Origin,
 
@@ -89,13 +134,22 @@ enum RawCommands {
 
     /// Archive a directory of existing raw files in one pass
     Import {
+        #[command(flatten)]
+        paths: Paths,
+
         /// The dataset they belong to
         #[arg(long)]
         dataset: String,
 
-        /// Directory to read from
+        /// Directory to read from; paths below it become keys below the
+        /// dataset's raw prefix
         #[arg(long)]
         from: PathBuf,
+
+        /// URL each file's path is appended to for its `source_url`, pinned to
+        /// a commit when the files come from a git repository
+        #[arg(long)]
+        source_url_base: String,
 
         /// Where these files came from
         #[arg(long, value_enum)]
@@ -111,50 +165,192 @@ enum ConfigCommands {
         #[arg(long, default_value = "datasets.yaml")]
         config: PathBuf,
 
-        /// Compare against the catalog at this git ref, failing on a
-        /// removed or renamed published path
+        /// A previous catalog to check the published contract against
+        ///
+        /// A file rather than a git ref, deliberately: CI writes out the base
+        /// revision with `git show`, and the tool stays unaware that git
+        /// exists.
         #[arg(long)]
-        base: Option<String>,
+        base: Option<PathBuf>,
     },
 }
 
 #[derive(Subcommand, Debug)]
 enum SiteCommands {
-    /// Render the CSVs, metadata and landing page into a directory
+    /// Render the data directory, landing page and headers into a directory
     Build {
+        #[command(flatten)]
+        paths: Paths,
+
+        /// The page template and headers
+        #[arg(long, default_value = "site")]
+        site: PathBuf,
+
         /// Destination directory
         #[arg(long, default_value = "dist")]
         out: PathBuf,
     },
 }
 
-/// How a raw file reached the archive.
-///
-/// Recorded per file rather than per dataset, because a single series mixes
-/// them: most days arrive from the source, some are recovered from a mirror
-/// after a missed run, and a few are only ever downloaded by hand.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum Origin {
-    /// Fetched by a scheduled run
-    Auto,
-    /// Downloaded by a person and handed to `raw put`
-    Manual,
-    /// Recovered from a secondary mirror
-    Upstream,
-}
-
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
+    let http = http_client()?;
 
     match cli.command {
-        Commands::Sync { .. } => bail!("sync is not implemented yet"),
-        Commands::Backfill { .. } => bail!("backfill is not implemented yet"),
-        Commands::Raw(RawCommands::Put { .. }) => bail!("raw put is not implemented yet"),
-        Commands::Raw(RawCommands::Import { .. }) => bail!("raw import is not implemented yet"),
-        Commands::Reconcile { .. } => bail!("reconcile is not implemented yet"),
-        Commands::Config(ConfigCommands::Validate { .. }) => {
-            bail!("config validate is not implemented yet")
+        Commands::Sync {
+            paths,
+            dataset,
+            dry_run,
+        } => {
+            let catalog = Catalog::load_validated(&paths.config)?;
+            let data = DataDir::new(&paths.data);
+            let public = Public::new(http.clone(), &catalog.archive.public_url);
+            let store = match (dry_run, paths.local_archive) {
+                (true, _) => Store::DryRun(public),
+                (false, Some(dir)) => Store::Dir(dir),
+                (false, None) => Store::r2_from_env(&catalog.archive.bucket, public)?,
+            };
+            let now = Utc::now();
+            let outcome = pipeline::sync(
+                &catalog,
+                &data,
+                &store,
+                &http,
+                dataset.as_deref(),
+                now,
+                !dry_run,
+            )
+            .await;
+            // Metadata is rewritten even after a partial failure, so the
+            // datasets that did update are described as they now are.
+            if !dry_run {
+                publish::write_metadata(&catalog, &data, now)?;
+            }
+            outcome?;
         }
-        Commands::Site(SiteCommands::Build { .. }) => bail!("site build is not implemented yet"),
+        Commands::Backfill {
+            paths,
+            dataset,
+            from_dir,
+            check,
+        } => {
+            let catalog = Catalog::load_validated(&paths.config)?;
+            let data = DataDir::new(&paths.data);
+            let store = match from_dir.or(paths.local_archive) {
+                Some(dir) => Store::Dir(dir),
+                None => Store::Public(Public::new(http.clone(), &catalog.archive.public_url)),
+            };
+            pipeline::backfill(&catalog, &data, &store, &dataset, check).await?;
+            if !check {
+                publish::write_metadata(&catalog, &data, Utc::now())?;
+            }
+        }
+        Commands::Raw(RawCommands::Put {
+            paths,
+            dataset,
+            name,
+            source_url,
+            origin,
+            file,
+        }) => {
+            let catalog = Catalog::load_validated(&paths.config)?;
+            let store = writable_store(&catalog, &http, paths.local_archive.clone())?;
+            pipeline::put(
+                &catalog,
+                &DataDir::new(&paths.data),
+                &store,
+                &dataset,
+                &file,
+                &name,
+                origin,
+                &source_url,
+                Utc::now(),
+            )
+            .await?;
+        }
+        Commands::Raw(RawCommands::Import {
+            paths,
+            dataset,
+            from,
+            source_url_base,
+            origin,
+        }) => {
+            let catalog = Catalog::load_validated(&paths.config)?;
+            let store = writable_store(&catalog, &http, paths.local_archive.clone())?;
+            pipeline::import(
+                &catalog,
+                &DataDir::new(&paths.data),
+                &store,
+                &dataset,
+                &from,
+                origin,
+                &source_url_base,
+                Utc::now(),
+            )
+            .await?;
+        }
+        Commands::Reconcile { .. } => bail!("reconcile is not implemented yet"),
+        Commands::Config(ConfigCommands::Validate { config, base }) => {
+            validate_config(config, base)?
+        }
+        Commands::Site(SiteCommands::Build { paths, site, out }) => {
+            let catalog = Catalog::load_validated(&paths.config)?;
+            publish::build_site(&catalog, &DataDir::new(&paths.data), &site, &out)?;
+            println!("site built in {}", out.display());
+        }
     }
+    Ok(())
+}
+
+fn writable_store(
+    catalog: &Catalog,
+    http: &reqwest::Client,
+    local: Option<PathBuf>,
+) -> Result<Store> {
+    if let Some(dir) = local {
+        return Ok(Store::Dir(dir));
+    }
+    let public = Public::new(http.clone(), &catalog.archive.public_url);
+    Ok(Store::r2_from_env(&catalog.archive.bucket, public)?)
+}
+
+fn http_client() -> Result<reqwest::Client> {
+    Ok(reqwest::Client::builder()
+        // Sources see who is asking, and can say so if they would rather we
+        // did not.
+        .user_agent(concat!(
+            "xfina-data/",
+            env!("CARGO_PKG_VERSION"),
+            " (+https://data.xfina.dev)"
+        ))
+        .timeout(std::time::Duration::from_secs(120))
+        .build()?)
+}
+
+fn validate_config(config: PathBuf, base: Option<PathBuf>) -> Result<()> {
+    let catalog = Catalog::load(&config)?;
+    catalog.validate()?;
+
+    // The base catalog is read without validating it. It is whatever was on
+    // main, and holding an old file to today's rules would fail pull requests
+    // for something their author did not do.
+    if let Some(base) = base {
+        let previous = Catalog::load(&base)?;
+        validate::check_contract(&catalog, &previous)?;
+        println!(
+            "{}: {} dataset(s) valid, contract kept against {}",
+            config.display(),
+            catalog.datasets.len(),
+            base.display()
+        );
+    } else {
+        println!(
+            "{}: {} dataset(s) valid",
+            config.display(),
+            catalog.datasets.len()
+        );
+    }
+
+    Ok(())
 }

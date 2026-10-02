@@ -1,0 +1,21 @@
+# Cloudflare static asset headers for data.xfina.dev.
+#
+# CORS is open because the whole point is other people's code reading these
+# files, including from a browser on another origin. Nothing here is private.
+
+/*
+  Access-Control-Allow-Origin: *
+  X-Content-Type-Options: nosniff
+
+# Series change at most a few times a day, so an hour of caching is cheap for
+# readers and costs at most an hour of staleness.
+/v1/*
+  Cache-Control: public, max-age=3600
+
+# Small, and the first thing a consumer reads to decide whether anything is
+# new, so it is kept fresher than the files it describes.
+/v1/metadata.json
+  Cache-Control: public, max-age=300
+
+/v1/*.csv
+  Content-Type: text/csv; charset=utf-8

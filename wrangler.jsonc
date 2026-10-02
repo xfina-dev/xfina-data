@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "xfina-data",
+  "compatibility_date": "2026-10-02",
+
+  // An assets-only Worker: there is no script, so every request is served
+  // straight from the edge with no Worker invocation and no per-request cost.
+  // `xfina-data site build` writes ./dist from the data branch.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  },
+
+  "routes": [
+    { "pattern": "data.xfina.dev", "custom_domain": true }
+  ]
+}

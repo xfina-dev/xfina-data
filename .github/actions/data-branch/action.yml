@@ -1,0 +1,23 @@
+name: Check out the data branch
+description: >
+  Put the `data` branch in ./data as a worktree, creating it as an orphan on the
+  very first run. Everything the tool publishes lives there: series, metadata
+  and raw manifests.
+
+runs:
+  using: composite
+  steps:
+    - name: Check out data
+      shell: bash
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        if git ls-remote --exit-code --heads origin data > /dev/null; then
+          git fetch --depth=1 origin data
+          git worktree add -B data data FETCH_HEAD
+        else
+          # Orphan, so the published data shares no history with the code and
+          # a clone of either does not drag the other along.
+          echo "No data branch yet; starting one."
+          git worktree add --orphan -b data data
+        fi

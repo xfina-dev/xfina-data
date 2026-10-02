@@ -9,7 +9,7 @@ use thiserror::Error;
 
 /// Everything that can go wrong while syncing or publishing a dataset.
 #[derive(Debug, Error)]
-pub enum XfinataError {
+pub enum XfinaDataError {
     /// The catalog is malformed, or asks for something this build cannot do.
     #[error("config: {0}")]
     Config(String),
@@ -30,10 +30,15 @@ pub enum XfinataError {
     #[error("store: {0}")]
     Store(String),
 
+    /// Some datasets updated and some did not. Lists the ones that did not,
+    /// each with its own reason.
+    #[error("incomplete run: {0}")]
+    Incomplete(String),
+
     /// Local filesystem failure.
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
 }
 
 /// Result alias used throughout the crate.
-pub type Result<T> = std::result::Result<T, XfinataError>;
+pub type Result<T> = std::result::Result<T, XfinaDataError>;

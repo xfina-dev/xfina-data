@@ -1,2 +1,3 @@
 key,sha256,bytes,content_type,fetched_at,origin,source_url
 bis/ws-xru/2026/2026-10-02/ws_xru-D.IN.INR.A.csv,2bc55e8029f909048f94aa27d085805878df77ed6aa7c232780905059fae067b,1933972,text/csv,2026-10-02T17:20:07Z,auto,https://stats.bis.org/api/v2/data/dataflow/BIS/WS_XRU/1.0/D.IN.INR.A?format=csv&startPeriod=1973-01-01
+bis/ws-xru/2026/2026-10-02/ws_xru-D.IN.INR.A-6d33b05b.csv,6d33b05b8c8a41f4ff14f9cd3d36b50e1f76aa71924737e8fc560eb3fc72194f,6042,text/csv,2026-10-02T17:33:40Z,auto,https://stats.bis.org/api/v2/data/dataflow/BIS/WS_XRU/1.0/D.IN.INR.A?format=csv&startPeriod=2026-08-03

@@ -57,7 +57,7 @@
       "sha256": "dac679d6b127ede416060f539cd758bc0ed8f1573578722e1b571781641178b0",
       "updated_at": "2026-10-02T17:20:07Z",
       "manifest": "v1/manifests/bis-usd-inr.csv",
-      "raw_files": 1
+      "raw_files": 2
     },
     {
       "id": "in-cpi-imf",

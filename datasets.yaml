@@ -40,6 +40,16 @@ datasets:
       # sahilgupta/sbi-fx-ratekeeper (MIT) keeps its own copy of the same
       # PDFs, so a day lost to a failed run can still be recovered.
       recover_from: upstream-sbi-fx-ratekeeper
+      # Kept in the archive, never read. Each day such a sheet carries has no
+      # row in the CSV; metadata.json repeats this list for consumers.
+      unreadable:
+        # Archived as 2024-09-06.pdf, 2024-09-07.pdf and 2024-09-08.pdf.
+        - sha256: d1acc012fa7fed5796c81c415946f5e3caf79bd57b62fcba5c413b0034158098
+          reason: >-
+            SBI's sheet for 2024-09-06 was made with "Microsoft: Print To PDF",
+            which turned every character into vector outlines: it has no fonts
+            and no text, only drawn shapes. Reading it would need OCR, which
+            this project does not do, so 2024-09-06 has no row.
     output:
       path: v1/fx/sbi-forex-card-usd.csv
       columns: [date, tt_buy, tt_sell]

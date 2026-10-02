@@ -248,6 +248,25 @@ pub struct Raw {
 
     /// A secondary source to recover missed documents from, if one exists.
     pub recover_from: Option<String>,
+
+    /// Archived documents that no parser can read, each with the reason.
+    ///
+    /// Every archived document must otherwise yield its rows or fail the
+    /// derivation, because a silently skipped document looks exactly like a
+    /// holiday in the published CSV. This list is the one way past that rule,
+    /// and it is public: each entry is in the catalog and in `metadata.json`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unreadable: Vec<Unreadable>,
+}
+
+/// One archived document that is kept but never read.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Unreadable {
+    /// Its sha256, so every archived copy of the same bytes is covered —
+    /// SBI serves one sheet under several dates.
+    pub sha256: String,
+    /// Why it cannot be read, for the people the gap affects.
+    pub reason: String,
 }
 
 /// How a raw file reached the archive.

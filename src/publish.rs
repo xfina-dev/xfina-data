@@ -9,7 +9,7 @@ use std::path::Path;
 use chrono::{DateTime, SubsecRound, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::catalog::{Catalog, Frequency, SdmxProvider, Source, Status, TOOL_VERSION};
+use crate::catalog::{Catalog, Frequency, SdmxProvider, Source, Status, Unreadable, TOOL_VERSION};
 use crate::error::{Result, XfinaDataError};
 use crate::pipeline::{DataDir, METADATA_PATH};
 use crate::raw::{self, Manifest};
@@ -60,6 +60,10 @@ pub struct Entry {
     pub manifest: String,
     /// How many raw files the manifest records.
     pub raw_files: usize,
+    /// Archived documents no parser can read, by sha256, with the reason.
+    /// The periods they would have dated have no rows.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unreadable: Vec<Unreadable>,
 }
 
 /// Rewrite `metadata.json` from what is in the data directory.
@@ -110,6 +114,7 @@ pub fn write_metadata(catalog: &Catalog, data: &DataDir, now: DateTime<Utc>) -> 
             updated_at,
             manifest: relative(data.root(), &manifest),
             raw_files: Manifest::load(&manifest)?.len(),
+            unreadable: dataset.raw.unreadable.clone(),
         });
     }
 

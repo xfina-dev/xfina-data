@@ -75,7 +75,10 @@ body {
   font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-main { max-width: 72rem; margin: 0 auto; padding: 32px; }
+/* Content-box, so the padding sits outside the 72rem column as it does on
+   xfina.dev (`p-8` around `max-w-6xl`); border-box would take it out of the
+   column and make this site 64px narrower. */
+main { box-sizing: content-box; max-width: 72rem; margin: 0 auto; padding: 32px; }
 @media (max-width: 640px) { main { padding: 24px 16px; } }
 a { color: inherit; text-underline-offset: 4px; }
 p { margin: 0; }

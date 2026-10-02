@@ -249,6 +249,28 @@ fn check_prefix(dataset: &Dataset, problems: &mut Vec<String>) {
             "`{id}`: raw prefix `{prefix}` must be a clean relative key prefix"
         ));
     }
+
+    let mut seen = HashSet::new();
+    for entry in &dataset.raw.unreadable {
+        let sha = &entry.sha256;
+        if sha.len() != 64
+            || !sha
+                .chars()
+                .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+        {
+            problems.push(format!(
+                "`{id}`: unreadable sha256 `{sha}` must be 64 lowercase hex digits"
+            ));
+        }
+        if entry.reason.trim().is_empty() {
+            problems.push(format!(
+                "`{id}`: unreadable {sha} has no reason — the gap it leaves must be explained"
+            ));
+        }
+        if !seen.insert(sha) {
+            problems.push(format!("`{id}`: unreadable {sha} is listed twice"));
+        }
+    }
 }
 
 /// Check that this catalog keeps every promise the base one made.

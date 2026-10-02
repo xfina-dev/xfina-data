@@ -161,14 +161,14 @@ async fn sync_one(
             ));
         }
         let mut published = series::csv::read(File::open(&series_path)?)?;
-        let docs = load(store, &new_files.iter().collect::<Vec<_>>(), &fresh).await?;
+        let docs = load(store, &readable(dataset, &new_files), &fresh).await?;
         let derived = derive(dataset, &docs)?;
         let report = published.merge(&derived)?;
         (published, report.to_string())
     } else {
         // Nothing published yet: the whole series, from everything archived.
         let files = manifest.files();
-        let docs = load(store, &files, &fresh).await?;
+        let docs = load(store, &readable(dataset, files.iter().copied()), &fresh).await?;
         let derived = derive(dataset, &docs)?;
         let rows = derived.len();
         (
@@ -206,7 +206,12 @@ pub async fn backfill(
     }
 
     let files = manifest.files();
-    let docs = load(store, &files, &HashMap::new()).await?;
+    let docs = load(
+        store,
+        &readable(dataset, files.iter().copied()),
+        &HashMap::new(),
+    )
+    .await?;
     let derived = derive(dataset, &docs)?;
     derived.check_invariants()?;
 
@@ -336,6 +341,38 @@ pub async fn put(
         None => println!("{id}: already archived, nothing to do"),
     }
     manifest.save(&manifest_path)
+}
+
+/// The files a derivation reads: all of them except those the catalog lists
+/// as unreadable.
+///
+/// Those stay in the archive but are never downloaded or handed to a parser.
+/// Each skip is printed with its reason, so the run log says exactly which
+/// periods have no row and why.
+fn readable<'a>(
+    dataset: &Dataset,
+    files: impl IntoIterator<Item = &'a RawFile>,
+) -> Vec<&'a RawFile> {
+    files
+        .into_iter()
+        .filter(|file| {
+            match dataset
+                .raw
+                .unreadable
+                .iter()
+                .find(|u| u.sha256 == file.sha256)
+            {
+                Some(listed) => {
+                    println!(
+                        "{}: skipped {}, listed as unreadable: {}",
+                        dataset.id, file.key, listed.reason
+                    );
+                    false
+                }
+                None => true,
+            }
+        })
+        .collect()
 }
 
 fn derive(dataset: &Dataset, docs: &[(&RawFile, Vec<u8>)]) -> Result<Series> {

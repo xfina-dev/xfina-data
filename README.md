@@ -28,7 +28,7 @@ Source  ──▶  Raw archive  ──▶  Parse  ──▶  Series  ──▶  
 
 Every published dataset has a preview page at `data.xfina.dev/datasets/<id>/`, with a chart or a calendar view (a GitHub-style year of days for daily series, a years × months grid for monthly ones), configured by the `preview` block of its catalog entry.
 
-Everything is CSV, with one `v1/metadata.json` describing every series: its schema, source, licence, row count, range, sha256 and last update. Each dataset's raw manifest, `v1/manifests/<id>.csv`, lists every source document with its sha256, fetch time, source URL and origin; the document itself is at `https://raw.data.xfina.dev/<key>`.
+CSVs are served Brotli- or gzip-compressed to any client that sends `Accept-Encoding` (`curl --compressed`), about a quarter of their plain size. Everything is CSV, with one `v1/metadata.json` describing every series: its schema, source, licence, row count, range, sha256 and last update. Each dataset's raw manifest, `v1/manifests/<id>.csv`, lists every source document with its sha256, fetch time, source URL and origin; the document itself is at `https://raw.data.xfina.dev/<key>`.
 
 ## Architecture
 

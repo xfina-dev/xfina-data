@@ -25,6 +25,19 @@
       <p><a href="/v1/metadata.json"><code>https://data.xfina.dev/v1/metadata.json</code></a> lists every
       series with its path, columns, source, licence, row count, date range, sha256 and last update;
       read it to discover what is available and whether anything is new.</p>
+      <p>Downloads are compressed with Brotli or gzip when the client asks for it, which brings the
+      larger series to about a quarter of their size (the BIS rates go from 254 KB to 65 KB). With curl:</p>
+<pre>curl --compressed -O https://data.xfina.dev/v1/fx/bis-usd-inr.csv</pre>
+      <p>Over plain HTTP, ask with <code>Accept-Encoding</code> and the response says which one it used.
+      Browsers and most HTTP libraries do this on their own:</p>
+<pre>GET /v1/fx/bis-usd-inr.csv HTTP/2
+Host: data.xfina.dev
+Accept-Encoding: br, gzip
+
+HTTP/2 200
+content-type: text/csv; charset=utf-8
+content-encoding: br
+access-control-allow-origin: *</pre>
       <p>Paths and columns under <code>/v1/</code> are only ever added to, never renamed or removed.</p>
     </div>
   </section>

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Compressed downloads, documented**: the index's developer section shows fetching a CSV compressed, with `curl --compressed` and as raw HTTP headers. CSVs are served Brotli- or gzip-compressed on request through a Cloudflare compression rule, about a quarter of their plain size.
 - **India CPI is published** at `v1/inflation/in-cpi.csv`: the all-India Combined general index, base 2024=100, monthly from 2013-01, from MoSPI's `Back` series up to 2024-12 and its `Current` series after. Values are exactly as MoSPI prints them (`55.10`, not `55.1`). Cross-checked against the predecessor's hand-made file: all 162 overlapping months agree.
 - **Raw archive in R2**, served at `raw.data.xfina.dev`. Every source document is stored before anything is derived from it, written with `If-None-Match: *` so the bucket itself refuses an overwrite, with an explicit content type and an immutable one-year cache header. A key already holding different bytes gets a suffixed key instead; the original stays.
 - **Raw manifests** at `v1/manifests/<id>.csv`: one row per archived document with its key, sha256, size, content type, fetch time, origin and source URL. Reads are checked against the recorded sha256.

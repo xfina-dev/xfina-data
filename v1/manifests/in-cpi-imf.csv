@@ -1,0 +1,2 @@
+key,sha256,bytes,content_type,fetched_at,origin,source_url
+imf/cpi/2026/2026-10-02/cpi-IND.CPI._T.IX.M.csv,e57af0706c7227163662f6e8b83bc4bd66511994710f4cd2980818e7cccbc08f,144823,text/csv,2026-10-02T17:20:07Z,auto,https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/CPI/5.0.0/IND.CPI._T.IX.M

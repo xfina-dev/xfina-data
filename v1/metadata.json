@@ -1,0 +1,89 @@
+{
+  "generated_by": "xfina-data 0.1.0",
+  "raw_base_url": "https://raw.data.xfina.dev",
+  "datasets": [
+    {
+      "id": "in-cpi",
+      "title": "India CPI, all-India combined, general index",
+      "frequency": "monthly",
+      "path": "v1/inflation/in-cpi.csv",
+      "columns": [
+        "month",
+        "index"
+      ],
+      "licence": "Ministry of Statistics and Programme Implementation, open data",
+      "source": {
+        "kind": "mospi-cpi",
+        "base_year": "2024",
+        "series": [
+          "Back",
+          "Current"
+        ],
+        "first_year": 2013,
+        "state_code": 1,
+        "sector_code": 3,
+        "division_code": "00"
+      },
+      "rows": 164,
+      "first": "2013-01",
+      "last": "2026-08",
+      "sha256": "6f3c2751808dfabb168bf9fb4031559a1c89d4afba3b60cd6c001f9353ba659d",
+      "updated_at": "2026-10-02T17:20:07Z",
+      "manifest": "v1/manifests/in-cpi.csv",
+      "raw_files": 14
+    },
+    {
+      "id": "bis-usd-inr",
+      "title": "USD/INR exchange rate, daily, from the BIS",
+      "frequency": "daily",
+      "path": "v1/fx/bis-usd-inr.csv",
+      "columns": [
+        "date",
+        "inr_per_usd"
+      ],
+      "licence": "Source: BIS (data.bis.org). BIS statistics may be reproduced freely with this attribution and at no additional charge, under the BIS terms of permitted use: https://data.bis.org/help/legal",
+      "source": {
+        "kind": "sdmx",
+        "provider": "bis",
+        "flow": "WS_XRU",
+        "version": "1.0",
+        "key": "D.IN.INR.A",
+        "start": "1973-01-01",
+        "refetch_days": 60
+      },
+      "rows": 13610,
+      "first": "1973-01-02",
+      "last": "2026-09-29",
+      "sha256": "dac679d6b127ede416060f539cd758bc0ed8f1573578722e1b571781641178b0",
+      "updated_at": "2026-10-02T17:20:07Z",
+      "manifest": "v1/manifests/bis-usd-inr.csv",
+      "raw_files": 1
+    },
+    {
+      "id": "in-cpi-imf",
+      "title": "India CPI, monthly since 1957, from the IMF",
+      "frequency": "monthly",
+      "path": "v1/inflation/in-cpi-imf.csv",
+      "columns": [
+        "month",
+        "index"
+      ],
+      "licence": "Source: International Monetary Fund, Consumer Price Index (CPI) dataset, https://data.imf.org. Reproduced unaltered under the IMF Copyright and Usage terms for statistical data: https://www.imf.org/en/about/copyright-and-terms",
+      "source": {
+        "kind": "sdmx",
+        "provider": "imf",
+        "flow": "CPI",
+        "version": "5.0.0",
+        "key": "IND.CPI._T.IX.M",
+        "start": "1957-01"
+      },
+      "rows": 835,
+      "first": "1957-01",
+      "last": "2026-07",
+      "sha256": "5de020e8bb6a5628ac895c1a6c990f9538385cd71ff31295c3eaee8abdb75a55",
+      "updated_at": "2026-10-02T17:20:07Z",
+      "manifest": "v1/manifests/in-cpi-imf.csv",
+      "raw_files": 1
+    }
+  ]
+}

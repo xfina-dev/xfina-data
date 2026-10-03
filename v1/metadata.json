@@ -21,13 +21,13 @@
         ],
         "currency": "USD"
       },
-      "rows": 1590,
+      "rows": 1591,
       "first": "2020-01-06",
-      "last": "2026-10-01",
-      "sha256": "d4ef6f8425e0be9821ee46fc26c2c4dd68499e21f2bea9d15c69d174de9c54f8",
-      "updated_at": "2026-10-03T03:38:28Z",
+      "last": "2026-10-03",
+      "sha256": "f0a29f4dd0de64bc4578215500664e403ca817aade397f93ac745eeee98c86f0",
+      "updated_at": "2026-10-03T05:25:11Z",
       "manifest": "v1/manifests/sbi-forex-card-usd.csv",
-      "raw_files": 1839,
+      "raw_files": 1840,
       "unreadable": [
         {
           "sha256": "d1acc012fa7fed5796c81c415946f5e3caf79bd57b62fcba5c413b0034158098",

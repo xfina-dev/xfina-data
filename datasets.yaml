@@ -18,6 +18,9 @@ min_tool_version: 0.1.0
 archive:
   bucket: xfina-data-raw
   public_url: https://raw.data.xfina.dev
+  # R2's free tier. Every sync reports usage against it; see AGENTS.md's
+  # storage model for how the archive stays small.
+  budget_bytes: 10000000000
 
 datasets:
   - id: sbi-forex-card-usd
@@ -150,6 +153,9 @@ datasets:
       version: "5.0.0"
       key: IND.CPI._T.IX.M
       start: "1957-01"
+      # After the first run, two years back: enough for the IMF to revise a
+      # month, about 2 KB instead of the whole series each time it changes.
+      refetch_days: 730
     raw:
       prefix: imf/cpi
       origin: auto

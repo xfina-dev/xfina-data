@@ -79,6 +79,10 @@ fn check_archive(catalog: &Catalog, problems: &mut Vec<String>) {
     // Keys are joined onto this with a single slash, and every manifest row's
     // link is built that way, so a trailing slash would double up in all of
     // them. Plain http would let anyone on the path alter a raw file in transit.
+    if archive.budget_bytes == 0 {
+        problems.push("archive budget_bytes must be more than zero".to_string());
+    }
+
     if !archive.public_url.starts_with("https://") || archive.public_url.ends_with('/') {
         problems.push(format!(
             "archive public_url `{}` must be https:// with no trailing slash",

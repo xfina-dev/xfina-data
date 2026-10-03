@@ -289,7 +289,11 @@ pub async fn import(
             source_url: format!("{base}/{relative}"),
             fetched_at: now,
         };
-        if raw::archive(store, &mut manifest, incoming, Dedupe::ByKey)
+        // By content: a file whose bytes the archive already holds, under any
+        // key, is not stored again. An old archive is full of them — SBI
+        // serves Friday's sheet all weekend — and copying them in would spend
+        // the storage budget on nothing.
+        if raw::archive(store, &mut manifest, incoming, Dedupe::BySha)
             .await?
             .is_some()
         {
@@ -305,10 +309,108 @@ pub async fn import(
 
     manifest.save(&manifest_path)?;
     println!(
-        "{id}: {added} new file(s) archived, {} already held, {} in the manifest",
+        "{id}: {added} new file(s) archived, {} already held (by content), {} in the manifest",
         paths.len() - added,
         manifest.len()
     );
+    Ok(())
+}
+
+/// Remove archived files whose bytes another archived file already holds.
+///
+/// The one place the archive deletes anything, for the one-time cleanup of
+/// copies an early import stored before imports deduplicated by content.
+///
+/// From each group of identical files one is kept: the copy named after the
+/// date the document itself prints, when the source has such a date and a
+/// copy carries it — an upstream archive stored some SBI sheets under
+/// day/month-swapped names as well as their true one — and otherwise the
+/// earliest fetched. The kept copy is read back and its sha256 checked
+/// before any other copy is deleted, so no content can be lost. Without
+/// `apply`, only reports what it would do.
+pub async fn dedupe(
+    catalog: &Catalog,
+    data: &DataDir,
+    store: &Store,
+    id: &str,
+    apply: bool,
+) -> Result<()> {
+    let dataset = one(catalog, id)?;
+    let manifest_path = data.manifest(dataset);
+    let mut manifest = Manifest::load(&manifest_path)?;
+    let groups = manifest.duplicate_groups();
+    let surplus: usize = groups.iter().map(|g| g.len() - 1).sum();
+    let bytes: u64 = groups
+        .iter()
+        .map(|g| g[0].bytes * (g.len() as u64 - 1))
+        .sum();
+    println!(
+        "{id}: {surplus} duplicate file(s) in {} group(s), {bytes} bytes, of {} archived",
+        groups.len(),
+        manifest.len()
+    );
+
+    for group in groups {
+        let first = raw::read_verified(store, &group[0]).await?;
+        let printed =
+            sources::document_date(dataset, &first).map(|d| d.format("%Y-%m-%d").to_string());
+        let named = |f: &RawFile| {
+            printed.as_deref().is_some_and(|date| {
+                f.key
+                    .rsplit('/')
+                    .next()
+                    .is_some_and(|name| name.starts_with(date))
+            })
+        };
+        let kept = group.iter().find(|f| named(f)).unwrap_or(&group[0]).clone();
+        if kept.key != group[0].key {
+            // Different key, same bytes: still confirm this object is intact.
+            raw::read_verified(store, &kept).await?;
+        }
+        for file in group.iter().filter(|f| f.key != kept.key) {
+            if apply {
+                store.delete(&file.key).await?;
+                manifest.remove(&file.key);
+                println!("{id}: deleted {} (same bytes as {})", file.key, kept.key);
+            } else {
+                println!(
+                    "{id}: would delete {} (same bytes as {})",
+                    file.key, kept.key
+                );
+            }
+        }
+    }
+
+    if apply {
+        manifest.save(&manifest_path)?;
+        println!("{id}: {} file(s) remain in the manifest", manifest.len());
+    }
+    Ok(())
+}
+
+/// How full the archive is, against the catalog's budget.
+///
+/// Printed on every sync. Crossing 80% is a warning in the workflow log;
+/// crossing 95% fails the run, because the free tier's limit is a cliff and
+/// the time to decide what to do is before it, not after.
+pub fn check_budget(catalog: &Catalog, data: &DataDir) -> Result<()> {
+    let mut total = 0;
+    for dataset in &catalog.datasets {
+        let bytes = Manifest::load(&data.manifest(dataset))?.bytes();
+        println!("archive: {} holds {bytes} bytes", dataset.id);
+        total += bytes;
+    }
+    let budget = catalog.archive.budget_bytes;
+    let used = total as f64 / budget as f64 * 100.0;
+    println!("archive: {total} of {budget} bytes ({used:.1}%)");
+    if used >= 95.0 {
+        return Err(XfinaDataError::Store(format!(
+            "the raw archive is at {used:.1}% of its {budget}-byte budget"
+        )));
+    }
+    if used >= 80.0 {
+        println!("::warning::the raw archive is at {used:.1}% of its {budget}-byte budget");
+    }
     Ok(())
 }
 

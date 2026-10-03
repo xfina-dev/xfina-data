@@ -20,6 +20,7 @@ min_tool_version: 0.1.0
 archive:
   bucket: xfina-data-raw
   public_url: https://raw.data.xfina.dev
+  budget_bytes: 10000000000
 datasets:
   - id: {id}
     title: A series
@@ -87,7 +88,7 @@ fn rejects_duplicate_ids_and_paths() {
         one_dataset("in-cpi", "planned", "monthly", "month", "v1/a.csv"),
         one_dataset("in-cpi", "planned", "monthly", "month", "v1/a.csv")
             .lines()
-            .skip(7) // drop the document's header, down to and including `datasets:`
+            .skip(8) // drop the document's header, down to and including `datasets:`
             .collect::<Vec<_>>()
             .join("\n")
     );
@@ -126,6 +127,18 @@ fn rejects_a_catalog_newer_than_the_tool() {
         .replace("min_tool_version: 0.1.0", "min_tool_version: 99.0.0");
     let report = problems(&parse(&yaml));
     assert!(report.contains("needs tool version 99.0.0"), "{report}");
+}
+
+#[test]
+fn reads_a_catalog_written_before_the_budget_existed() {
+    // The contract check parses the catalog on `main` with this build, so a
+    // field added later must have a default or every such check fails.
+    let yaml = one_dataset("in-cpi", "planned", "monthly", "month", "v1/a.csv")
+        .replace("  budget_bytes: 10000000000\n", "");
+    assert!(!yaml.contains("budget_bytes"));
+    let catalog = parse(&yaml);
+    assert_eq!(catalog.archive.budget_bytes, 10_000_000_000);
+    catalog.validate().expect("still valid");
 }
 
 #[test]

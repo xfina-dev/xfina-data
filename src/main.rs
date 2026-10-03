@@ -132,6 +132,23 @@ enum RawCommands {
         file: PathBuf,
     },
 
+    /// Remove archived files whose bytes another archived file holds
+    ///
+    /// A one-time cleanup for copies an early import stored before imports
+    /// deduplicated by content. Reports what it would do unless --apply.
+    Dedupe {
+        #[command(flatten)]
+        paths: Paths,
+
+        /// The dataset whose archive to clean
+        #[arg(long)]
+        dataset: String,
+
+        /// Delete the duplicates; without this, only report them
+        #[arg(long)]
+        apply: bool,
+    },
+
     /// Archive a directory of existing raw files in one pass
     Import {
         #[command(flatten)]
@@ -228,6 +245,7 @@ async fn main() -> Result<()> {
                 publish::write_metadata(&catalog, &data, now)?;
             }
             outcome?;
+            pipeline::check_budget(&catalog, &data)?;
         }
         Commands::Backfill {
             paths,
@@ -268,6 +286,33 @@ async fn main() -> Result<()> {
                 Utc::now(),
             )
             .await?;
+        }
+        Commands::Raw(RawCommands::Dedupe {
+            paths,
+            dataset,
+            apply,
+        }) => {
+            let catalog = Catalog::load_validated(&paths.config)?;
+            // A report needs no credentials; only deleting does.
+            let store = if apply {
+                writable_store(&catalog, &http, paths.local_archive.clone())?
+            } else {
+                match paths.local_archive.clone() {
+                    Some(dir) => Store::Dir(dir),
+                    None => Store::Public(Public::new(http.clone(), &catalog.archive.public_url)),
+                }
+            };
+            pipeline::dedupe(
+                &catalog,
+                &DataDir::new(&paths.data),
+                &store,
+                &dataset,
+                apply,
+            )
+            .await?;
+            if apply {
+                publish::write_metadata(&catalog, &DataDir::new(&paths.data), Utc::now())?;
+            }
         }
         Commands::Raw(RawCommands::Import {
             paths,

@@ -55,6 +55,20 @@ pub struct Archive {
     /// Re-deriving a series reads raw files back from here, so anyone can do
     /// it without a key, and so can we.
     pub public_url: String,
+
+    /// How many bytes the archive may hold: R2's free tier, 10 GB. Every
+    /// sync reports usage against it, warns at 80% and fails at 95%.
+    ///
+    /// Defaulted rather than required, like every field added after a
+    /// catalog has shipped: the contract check reads the catalog on `main`
+    /// with this build, and an older file must still parse.
+    #[serde(default = "default_budget_bytes")]
+    pub budget_bytes: u64,
+}
+
+/// R2's free tier.
+fn default_budget_bytes() -> u64 {
+    10_000_000_000
 }
 
 /// One dataset: a single published time series and the source behind it.

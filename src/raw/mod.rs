@@ -145,6 +145,34 @@ impl Manifest {
         self.files.iter().map(|f| (f.key.as_str(), f)).collect()
     }
 
+    /// Total bytes the archive holds for this manifest.
+    pub fn bytes(&self) -> u64 {
+        self.files.iter().map(|f| f.bytes).sum()
+    }
+
+    /// Files that share their bytes with at least one other, grouped by
+    /// sha256, each group in derivation order (fetch time, then key).
+    pub fn duplicate_groups(&self) -> Vec<Vec<RawFile>> {
+        let mut groups: Vec<Vec<RawFile>> = Vec::new();
+        let mut index: HashMap<&str, usize> = HashMap::new();
+        for file in self.files() {
+            match index.get(file.sha256.as_str()) {
+                Some(&i) => groups[i].push(file.clone()),
+                None => {
+                    index.insert(&file.sha256, groups.len());
+                    groups.push(vec![file.clone()]);
+                }
+            }
+        }
+        groups.retain(|g| g.len() > 1);
+        groups
+    }
+
+    /// Drop one file's record.
+    pub fn remove(&mut self, key: &str) {
+        self.files.retain(|f| f.key != key);
+    }
+
     fn has_sha(&self, sha256: &str) -> bool {
         self.files.iter().any(|f| f.sha256 == sha256)
     }

@@ -23,7 +23,7 @@ datasets:
   - id: sbi-forex-card-usd
     title: SBI forex card rates, USD TT buy and TT sell
     frequency: daily
-    status: planned
+    status: published
     public: true
     licence: Published by State Bank of India as a public reference document
     source:

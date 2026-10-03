@@ -3615,9 +3615,9 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "xfina"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "653c7b92d34fecbad3951a42bc1b9ed053f34a29ff34dcb2cf2f877ec999d511"
+checksum = "b5854905fdf85d6cee5f15d054d97e7b231310d6c6602be776aa0813293e230d"
 dependencies = [
  "chrono",
  "pdf-extract",

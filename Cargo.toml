@@ -54,7 +54,7 @@ thiserror = "2.0"
 tokio = { version = "1.53", features = ["rt-multi-thread", "macros"] }
 # A published dependency, never a path one: what this tool is built against is
 # what anyone else can build against. Only the rate-sheet parser is compiled in.
-xfina = { version = "0.8", default-features = false, features = ["rt-sbi-forex-card"] }
+xfina = { version = "0.8.1", default-features = false, features = ["rt-sbi-forex-card"] }
 
 [dependencies]
 anyhow = { workspace = true }

@@ -3,6 +3,39 @@
   "raw_base_url": "https://raw.data.xfina.dev",
   "datasets": [
     {
+      "id": "sbi-forex-card-usd",
+      "title": "SBI forex card rates, USD TT buy and TT sell",
+      "frequency": "daily",
+      "path": "v1/fx/sbi-forex-card-usd.csv",
+      "columns": [
+        "date",
+        "tt_buy",
+        "tt_sell"
+      ],
+      "licence": "Published by State Bank of India as a public reference document",
+      "source": {
+        "kind": "sbi-forex-card",
+        "urls": [
+          "https://sbi.bank.in/documents/16012/1400784/FOREX_CARD_RATES.pdf",
+          "https://bank.sbi/documents/16012/1400784/FOREX_CARD_RATES.pdf"
+        ],
+        "currency": "USD"
+      },
+      "rows": 1590,
+      "first": "2020-01-06",
+      "last": "2026-10-01",
+      "sha256": "d4ef6f8425e0be9821ee46fc26c2c4dd68499e21f2bea9d15c69d174de9c54f8",
+      "updated_at": "2026-10-03T03:38:28Z",
+      "manifest": "v1/manifests/sbi-forex-card-usd.csv",
+      "raw_files": 1839,
+      "unreadable": [
+        {
+          "sha256": "d1acc012fa7fed5796c81c415946f5e3caf79bd57b62fcba5c413b0034158098",
+          "reason": "SBI's sheet for 2024-09-06 was made with \"Microsoft: Print To PDF\", which turned every character into vector outlines: it has no fonts and no text, only drawn shapes. Reading it would need OCR, which this project does not do, so 2024-09-06 has no row."
+        }
+      ]
+    },
+    {
       "id": "in-cpi",
       "title": "India CPI, all-India combined, general index",
       "frequency": "monthly",
@@ -57,7 +90,7 @@
       "sha256": "dac679d6b127ede416060f539cd758bc0ed8f1573578722e1b571781641178b0",
       "updated_at": "2026-10-02T17:20:07Z",
       "manifest": "v1/manifests/bis-usd-inr.csv",
-      "raw_files": 2
+      "raw_files": 3
     },
     {
       "id": "in-cpi-imf",

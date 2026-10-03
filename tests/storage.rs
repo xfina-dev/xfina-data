@@ -128,6 +128,38 @@ async fn dedupe_reports_then_removes_only_exact_copies() {
 }
 
 #[tokio::test]
+async fn dedupe_deletes_nothing_on_the_manifest_word_alone() {
+    // The manifest says two files are identical, but one stored object has
+    // since changed. Deleting it would lose content no other file holds.
+    let dir = scratch("dedupe-tampered");
+    let store = Store::Dir(dir.join("bucket"));
+    let data = DataDir::new(dir.join("data"));
+    let catalog = catalog(10_000_000_000);
+    let back = fixture("back-2024.json");
+    seed(
+        &store,
+        &data,
+        &catalog,
+        &[("a/back.json", back.clone()), ("b/back-again.json", back)],
+    )
+    .await;
+    fs::write(
+        dir.join("bucket/mospi/cpi/b/back-again.json"),
+        b"something else",
+    )
+    .unwrap();
+
+    let error = pipeline::dedupe(&catalog, &data, &store, "in-cpi", true)
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("deleting nothing more"), "{error}");
+    assert!(dir.join("bucket/mospi/cpi/b/back-again.json").exists());
+    let manifest = Manifest::load(&data.manifest(catalog.dataset("in-cpi").unwrap())).unwrap();
+    assert_eq!(manifest.len(), 2, "the manifest is not rewritten either");
+}
+
+#[tokio::test]
 async fn an_import_never_stores_bytes_the_archive_holds() {
     let dir = scratch("import-dedupe");
     let store = Store::Dir(dir.join("bucket"));

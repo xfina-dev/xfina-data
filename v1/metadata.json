@@ -1,6 +1,8 @@
 {
   "generated_by": "xfina-data 0.1.0",
   "raw_base_url": "https://raw.data.xfina.dev",
+  "raw_bytes": 652042063,
+  "raw_budget_bytes": 10000000000,
   "datasets": [
     {
       "id": "sbi-forex-card-usd",
@@ -28,6 +30,7 @@
       "updated_at": "2026-10-03T05:25:11Z",
       "manifest": "v1/manifests/sbi-forex-card-usd.csv",
       "raw_files": 1840,
+      "raw_bytes": 649905187,
       "unreadable": [
         {
           "sha256": "d1acc012fa7fed5796c81c415946f5e3caf79bd57b62fcba5c413b0034158098",
@@ -63,7 +66,8 @@
       "sha256": "6f3c2751808dfabb168bf9fb4031559a1c89d4afba3b60cd6c001f9353ba659d",
       "updated_at": "2026-10-02T17:20:07Z",
       "manifest": "v1/manifests/in-cpi.csv",
-      "raw_files": 14
+      "raw_files": 14,
+      "raw_bytes": 43810
     },
     {
       "id": "bis-usd-inr",
@@ -90,7 +94,8 @@
       "sha256": "dac679d6b127ede416060f539cd758bc0ed8f1573578722e1b571781641178b0",
       "updated_at": "2026-10-02T17:20:07Z",
       "manifest": "v1/manifests/bis-usd-inr.csv",
-      "raw_files": 3
+      "raw_files": 3,
+      "raw_bytes": 1945915
     },
     {
       "id": "in-cpi-imf",
@@ -108,7 +113,8 @@
         "flow": "CPI",
         "version": "5.0.0",
         "key": "IND.CPI._T.IX.M",
-        "start": "1957-01"
+        "start": "1957-01",
+        "refetch_days": 730
       },
       "rows": 835,
       "first": "1957-01",
@@ -116,7 +122,8 @@
       "sha256": "5de020e8bb6a5628ac895c1a6c990f9538385cd71ff31295c3eaee8abdb75a55",
       "updated_at": "2026-10-02T17:20:07Z",
       "manifest": "v1/manifests/in-cpi-imf.csv",
-      "raw_files": 1
+      "raw_files": 2,
+      "raw_bytes": 147151
     }
   ]
 }

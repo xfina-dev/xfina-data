@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{TITLE}} · Xfina Data</title>
 <meta name="description" content="{{SUMMARY}}">
-<link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<link rel="icon" href="/vendor/xfina-ui/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/vendor/xfina-ui/xfina-ui.css">
 <link rel="stylesheet" href="/assets/site.css">
-<script src="/assets/theme.js"></script>
+<script src="/vendor/xfina-ui/xfina-theme.js"></script>
+<script defer src="/vendor/xfina-ui/xfina-ui.js"></script>
+<script defer src="/assets/site.js"></script>
 </head>
 <body>
-<main class="stack">
+<main class="stack xf-container">
 <!-- HEADER -->
 
   <section class="card">
@@ -77,6 +80,8 @@
       </dl>
     </div>
   </section>
+
+  <xfina-footer site="data"></xfina-footer>
 </main>
 <script id="config" type="application/json">{{CONFIG_JSON}}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/6.1.0/echarts.min.js"

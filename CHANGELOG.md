@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The site uses xfina-ui** ([v0.2.0](https://github.com/xfina-dev/xfina-ui/releases/tag/v0.2.0)), the look shared with xfina.dev and labs.xfina.dev. Changes a reader will see:
+  - The header switches between the sites: Xfina, Labs, Xfingine (its GitHub repository) and Data.
+  - The light/dark choice made on any xfina.dev site carries over to this one.
+  - There is a privacy button, which says nothing is collected.
+  - A footer links the family.
+  - The 404 page has the header too.
+  - Chart and calendar colours are xfina-ui's palette, which is checked for colour-blind readers against both surfaces. In light mode, the first series' blue moves from `#2471a3` to `#2a78d6`.
+  - Nothing in the published files changes.
+
+### Added
+
+- **Dataset picker in the header**, on every page. It lists "All datasets", then each published dataset under its index group, by a short name. It opens the chosen page. Each dataset's short name is a new optional `preview.name` in the catalog; without one, the picker shows the id.
+
 ### Fixed
 
 - **Page width matches xfina.dev**: the content column is the full 72rem (1,152 px), with the padding outside it as xfina.dev has it. It was 64 px narrower because the padding was taken out of the column.

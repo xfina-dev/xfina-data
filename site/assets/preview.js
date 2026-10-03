@@ -158,13 +158,20 @@
 
   // ---- Shared helpers ------------------------------------------------------
 
+  // A token as a colour ECharts can draw. xfina-ui's tokens are bare HSL
+  // triplets ("212.8 67.7% 50.2%") for CSS to wrap in hsl(), which ECharts
+  // does not parse; the browser resolves them to rgb() through a probe.
+  const probe = document.createElement("span");
+  probe.hidden = true;
+  document.body.append(probe);
   function css(name) {
-    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    probe.style.color = `hsl(var(${name}))`;
+    return getComputedStyle(probe).color;
   }
 
+  // xfina-ui's theme script owns light and dark, on every xfina.dev site.
   function isDark() {
-    const theme = document.documentElement.getAttribute("data-theme");
-    return theme ? theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    return window.xfinaTheme.isDark();
   }
 
   function percent(value) {
@@ -200,7 +207,8 @@
     return sizes.length ? sizes[Math.min(sizes.length - 1, Math.floor(sizes.length * 0.95))] || 1 : 1;
   }
 
-  const ramp = (name) => css(name).split(",").map((c) => c.trim());
+  // A five-step ramp from xfina-ui: --seq-1..5 or --div-1..5.
+  const ramp = (name) => [1, 2, 3, 4, 5].map((i) => css(`--${name}-${i}`));
 
   // ---- Chart ---------------------------------------------------------------
 
@@ -209,7 +217,7 @@
   function renderChart() {
     const [lo, hi] = periodRows();
     const ink = css("--foreground"), muted = css("--muted-foreground"), line = css("--border");
-    const colours = [css("--series-1"), css("--series-2")];
+    const colours = [css("--chart-1"), css("--chart-2")];
     // Only the period's rows are drawn, so the y-axis fits the period rather
     // than the whole history.
     const slice = (series) => rows.time.slice(lo, hi + 1).map((t, j) => [t, series[lo + j]]);
@@ -218,7 +226,7 @@
     if (state.mode === "change") {
       // Change as bars in the calendar's colours — red for a rise, blue for
       // a fall — so the two views read the same way.
-      const div = ramp("--div");
+      const div = ramp("div");
       series = [{
         name: lines[0].label + " change",
         type: "bar",
@@ -315,7 +323,7 @@
         left: monthly ? 52 : 56,
         bottom: 0,
         itemHeight: 160,
-        inRange: { color: ramp(diverging ? "--div" : "--seq") },
+        inRange: { color: ramp(diverging ? "div" : "seq") },
         text: diverging ? ["rose", "fell"] : ["high", "low"],
         textStyle: { color: muted },
         formatter: (v) => (diverging ? percent(v) : v.toFixed(2)),

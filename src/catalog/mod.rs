@@ -121,6 +121,12 @@ pub struct Preview {
     /// them, and datasets within a group in catalog order.
     pub group: String,
 
+    /// A short name for the header's dataset picker, e.g. `BIS USD/INR`.
+    /// Titles run to forty characters and more, which would make the picker
+    /// wider than the title beside it. Without one, the picker shows the id.
+    #[serde(default)]
+    pub name: Option<String>,
+
     /// One or two sentences on what the series is, for its card and page.
     pub summary: String,
 

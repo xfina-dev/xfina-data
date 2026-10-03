@@ -58,6 +58,7 @@ datasets:
       columns: [date, tt_buy, tt_sell]
     preview:
       group: USD/INR Rates
+      name: SBI forex card
       summary: >-
         What SBI charges to convert between rupees and US dollars on a forex
         card, per the rate sheet it publishes each banking day. TT buy is what
@@ -93,6 +94,7 @@ datasets:
       columns: [month, index]
     preview:
       group: Inflation
+      name: MoSPI CPI
       summary: >-
         India's consumer price index for all of India, rural and urban
         combined, as MoSPI publishes it on its 2024 base. Divide two months'
@@ -129,6 +131,7 @@ datasets:
       columns: [date, inr_per_usd]
     preview:
       group: USD/INR Rates
+      name: BIS USD/INR
       summary: >-
         Rupees per US dollar on each business day since 1973, as the Bank for
         International Settlements publishes it. A reference rate rather than a
@@ -164,6 +167,7 @@ datasets:
       columns: [month, index]
     preview:
       group: Inflation
+      name: IMF CPI
       summary: >-
         India's consumer price index back to 1957, which the IMF builds by
         linking India's earlier national series onto the 2024 = 100 base. It

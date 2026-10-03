@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Xfina Data</title>
 <meta name="description" content="Open Indian financial datasets as plain CSV, each value traceable to an archived source document.">
-<link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<link rel="icon" href="/vendor/xfina-ui/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/vendor/xfina-ui/xfina-ui.css">
 <link rel="stylesheet" href="/assets/site.css">
-<script src="/assets/theme.js"></script>
+<script src="/vendor/xfina-ui/xfina-theme.js"></script>
+<script defer src="/vendor/xfina-ui/xfina-ui.js"></script>
+<script defer src="/assets/site.js"></script>
 </head>
 <body>
-<main class="stack">
+<main class="stack xf-container">
 <!-- HEADER -->
 
 <!-- GROUPS -->
@@ -42,8 +45,7 @@ access-control-allow-origin: *</pre>
     </div>
   </section>
 
-  <footer>Built by <a href="https://github.com/xfina-dev/xfina-data">xfina-data</a>. Each dataset's
-  source and licence is on its page and in <code>metadata.json</code>.</footer>
+  <xfina-footer site="data"></xfina-footer>
 </main>
 </body>
 </html>

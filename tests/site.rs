@@ -35,10 +35,23 @@ fn builds_an_index_and_a_preview_page_per_published_dataset() {
     for placeholder in ["<!-- HEADER -->", "<!-- GROUPS -->", "<!-- ENDPOINTS -->"] {
         assert!(!index.contains(placeholder), "{placeholder} is filled");
     }
+    // xfina-ui's header, with its title as the index's heading, and the
+    // dataset picker on "All datasets". Only published datasets are offered,
+    // under their index group, by their short name.
     assert!(
-        index.contains(r#"id="theme-toggle""#),
-        "the shared header is on the index"
+        index.contains(r#"<xfina-header site="data" home="/" heading>"#),
+        "the shared header is on the index, as its heading"
     );
+    assert!(
+        index.contains(r#"<xfina-select slot="context" label="Dataset" data-navigate value="/">"#)
+    );
+    assert!(index.contains(r#"<optgroup label="Inflation">"#));
+    assert!(index.contains(r#"<option value="/datasets/in-cpi/">MoSPI CPI</option>"#));
+    assert!(
+        !index.contains(r#"<option value="/datasets/sbi-forex-card-usd/">"#),
+        "no option leads to a page that does not exist"
+    );
+    assert!(index.contains(r#"<xfina-footer site="data">"#));
     // Grouped in the catalog's order. SBI is planned, so it is listed under
     // its group and marked, not linked.
     let rates = index.find(">USD/INR Rates<").expect("rates group");
@@ -66,6 +79,14 @@ fn builds_an_index_and_a_preview_page_per_published_dataset() {
     assert!(
         !page.contains("<!-- HEADER -->"),
         "the shared header is on every page"
+    );
+    assert!(
+        page.contains(r#"<xfina-header site="data" home="/">"#),
+        "the dataset's own title is the heading, not the header's"
+    );
+    assert!(
+        page.contains(r#"data-navigate value="/datasets/in-cpi/">"#),
+        "the picker names this dataset"
     );
     assert!(page.contains(r#""path":"v1/inflation/in-cpi.csv""#));
     assert!(page.contains(r#""views":["year-on-year"]"#));
@@ -97,8 +118,11 @@ fn builds_an_index_and_a_preview_page_per_published_dataset() {
     for asset in [
         "assets/site.css",
         "assets/preview.js",
-        "assets/theme.js",
-        "assets/logo.svg",
+        "assets/site.js",
+        "vendor/xfina-ui/xfina-ui.css",
+        "vendor/xfina-ui/xfina-ui.js",
+        "vendor/xfina-ui/xfina-theme.js",
+        "vendor/xfina-ui/logo.svg",
         "_headers",
         "404.html",
         "v1/metadata.json",
@@ -113,4 +137,29 @@ fn builds_an_index_and_a_preview_page_per_published_dataset() {
         metadata["datasets"][0]["updated_at"],
         "2026-10-02T10:30:00Z"
     );
+}
+
+/// The vendored xfina-ui must be a release, byte for byte: a hand-edited copy
+/// would make this site drift from the others while claiming a version.
+#[test]
+fn the_vendored_xfina_ui_matches_its_release_checksums() {
+    use sha2::{Digest, Sha256};
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("site/vendor/xfina-ui");
+    let sums = fs::read_to_string(dir.join("SHA256SUMS")).unwrap();
+    let mut checked = 0;
+    for line in sums.lines() {
+        let (expected, name) = line.split_once("  ").expect("sha256, two spaces, name");
+        let bytes = fs::read(dir.join(name)).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let actual = hex::encode(Sha256::digest(&bytes));
+        assert_eq!(actual, expected, "{name} differs from its release");
+        checked += 1;
+    }
+    assert!(checked >= 4, "every shipped file is listed");
+    // Every page loads these, so every one must be listed.
+    for name in ["xfina-ui.css", "xfina-ui.js", "xfina-theme.js", "logo.svg"] {
+        assert!(
+            sums.contains(&format!("  {name}\n")),
+            "{name} is in SHA256SUMS"
+        );
+    }
 }

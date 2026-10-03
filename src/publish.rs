@@ -158,6 +158,9 @@ pub fn build_site(catalog: &Catalog, data: &DataDir, site: &Path, out: &Path) ->
     }
     copy_tree(&data.root().join("v1"), &out.join("v1"))?;
     copy_tree(&site.join("assets"), &out.join("assets"))?;
+    // xfina-ui: the colours, header and footer every xfina.dev site shares,
+    // copied in from a tagged release rather than loaded from another origin.
+    copy_tree(&site.join("vendor"), &out.join("vendor"))?;
     fs::copy(site.join("_headers"), out.join("_headers"))?;
     fs::copy(site.join("404.html"), out.join("404.html"))?;
 
@@ -169,8 +172,10 @@ pub fn build_site(catalog: &Catalog, data: &DataDir, site: &Path, out: &Path) ->
         Err(_) => None,
     };
     let template = fs::read_to_string(site.join("dataset.html"))?;
-    // One header for every page, so the pages cannot drift apart.
+    // One header for every page, so the pages cannot drift apart. Only the
+    // picker's selection differs from page to page.
     let header = fs::read_to_string(site.join("header.html"))?;
+    let datasets = picker_groups(catalog, metadata.as_ref());
 
     let mut cards: HashMap<&str, String> = HashMap::new();
     for entry in metadata.iter().flat_map(|m| &m.datasets) {
@@ -209,8 +214,13 @@ pub fn build_site(catalog: &Catalog, data: &DataDir, site: &Path, out: &Path) ->
         // Embedded in a <script> element, where `</` would end it early.
         let config = config.to_string().replace("</", "<\\/");
         let (source_text, source_url) = describe(&dataset.source);
+        // The dataset's own <h1> is the page's heading, so the header's title
+        // is not one.
+        let page_header = header
+            .replace("{{HEADING}}", "")
+            .replace("<!-- PICKER -->", &picker(&datasets, Some(&dataset.id)));
         let html = template
-            .replace("<!-- HEADER -->", &header)
+            .replace("<!-- HEADER -->", &page_header)
             .replace("{{ID}}", &escape(&dataset.id))
             .replace("{{TITLE}}", &escape(&dataset.title))
             .replace("{{SUMMARY}}", &escape(&preview.summary))
@@ -290,12 +300,68 @@ pub fn build_site(catalog: &Catalog, data: &DataDir, site: &Path, out: &Path) ->
     }
     let endpoints = endpoints.join("\n");
 
+    // The index has no heading of its own: "Xfina Data" is it.
+    let index_header = header
+        .replace("{{HEADING}}", " heading")
+        .replace("<!-- PICKER -->", &picker(&datasets, None));
     let page = fs::read_to_string(site.join("index.html"))?
-        .replace("<!-- HEADER -->", &header)
+        .replace("<!-- HEADER -->", &index_header)
         .replace("<!-- GROUPS -->", &sections)
         .replace("<!-- ENDPOINTS -->", &endpoints);
     fs::write(out.join("index.html"), page)?;
     Ok(())
+}
+
+/// Published datasets for the header's picker: (group, [(id, name)]), groups
+/// and datasets in catalog order, as the index lists them. Only datasets with
+/// a page are offered, so no option leads to a 404.
+fn picker_groups<'a>(
+    catalog: &'a Catalog,
+    metadata: Option<&Metadata>,
+) -> Vec<(&'a str, Vec<(&'a str, &'a str)>)> {
+    let mut groups: Vec<(&str, Vec<(&str, &str)>)> = Vec::new();
+    for dataset in catalog.datasets.iter().filter(|d| d.public) {
+        let Some(preview) = &dataset.preview else {
+            continue;
+        };
+        if !metadata.is_some_and(|m| m.datasets.iter().any(|e| e.id == dataset.id)) {
+            continue;
+        }
+        let item = (
+            dataset.id.as_str(),
+            preview.name.as_deref().unwrap_or(&dataset.id),
+        );
+        match groups.iter_mut().find(|(name, _)| *name == preview.group) {
+            Some((_, items)) => items.push(item),
+            None => groups.push((&preview.group, vec![item])),
+        }
+    }
+    groups
+}
+
+/// The header's dataset picker, with `current` selected: "All datasets" (the
+/// index) when it is None. Each option's value is the page it opens, which
+/// assets/site.js follows.
+fn picker(groups: &[(&str, Vec<(&str, &str)>)], current: Option<&str>) -> String {
+    let selected = current.map_or("/".to_string(), |id| format!("/datasets/{id}/"));
+    let mut html = format!(
+        "    <xfina-select slot=\"context\" label=\"Dataset\" data-navigate value=\"{}\">\n\
+         \x20     <option value=\"/\">All datasets</option>\n",
+        escape(&selected)
+    );
+    for (group, items) in groups {
+        html.push_str(&format!("      <optgroup label=\"{}\">\n", escape(group)));
+        for (id, name) in items {
+            html.push_str(&format!(
+                "        <option value=\"/datasets/{}/\">{}</option>\n",
+                escape(id),
+                escape(name)
+            ));
+        }
+        html.push_str("      </optgroup>\n");
+    }
+    html.push_str("    </xfina-select>");
+    html
 }
 
 /// The one-line facts under a dataset's title.

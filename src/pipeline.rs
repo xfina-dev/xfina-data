@@ -325,9 +325,11 @@ pub async fn import(
 /// date the document itself prints, when the source has such a date and a
 /// copy carries it — an upstream archive stored some SBI sheets under
 /// day/month-swapped names as well as their true one — and otherwise the
-/// earliest fetched. The kept copy is read back and its sha256 checked
-/// before any other copy is deleted, so no content can be lost. Without
-/// `apply`, only reports what it would do.
+/// earliest fetched. Identical means the same sha256 over the whole file,
+/// never just the same size. The kept copy is read back and its sha256
+/// checked first, and each other copy is read back and hashed before it is
+/// deleted, so nothing goes on the manifest's word alone and no content can
+/// be lost. Without `apply`, only reports what it would do.
 pub async fn dedupe(
     catalog: &Catalog,
     data: &DataDir,
@@ -345,7 +347,7 @@ pub async fn dedupe(
         .map(|g| g[0].bytes * (g.len() as u64 - 1))
         .sum();
     println!(
-        "{id}: {surplus} duplicate file(s) in {} group(s), {bytes} bytes, of {} archived",
+        "{id}: {surplus} duplicate file(s) (identical sha256) in {} group(s), {bytes} bytes, of {} archived",
         groups.len(),
         manifest.len()
     );
@@ -369,13 +371,31 @@ pub async fn dedupe(
         }
         for file in group.iter().filter(|f| f.key != kept.key) {
             if apply {
+                // The manifest says these bytes match; the object itself must
+                // agree before it goes. Reading it back and hashing it means
+                // nothing is deleted on the word of a record alone.
+                let bytes = store.get(&file.key).await?;
+                let actual = raw::sha256(&bytes);
+                if actual != kept.sha256 {
+                    return Err(XfinaDataError::Store(format!(
+                        "{} hashes to {actual}, not {} like {}; deleting nothing more",
+                        file.key, kept.sha256, kept.key
+                    )));
+                }
                 store.delete(&file.key).await?;
                 manifest.remove(&file.key);
-                println!("{id}: deleted {} (same bytes as {})", file.key, kept.key);
+                println!(
+                    "{id}: deleted {} (sha256 {} verified, same as {})",
+                    file.key,
+                    &kept.sha256[..12],
+                    kept.key
+                );
             } else {
                 println!(
-                    "{id}: would delete {} (same bytes as {})",
-                    file.key, kept.key
+                    "{id}: would delete {} (same sha256 {} as {})",
+                    file.key,
+                    &kept.sha256[..12],
+                    kept.key
                 );
             }
         }

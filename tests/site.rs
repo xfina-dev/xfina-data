@@ -73,6 +73,24 @@ fn builds_an_index_and_a_preview_page_per_published_dataset() {
         page.contains("integrity=\"sha512-"),
         "the chart library is pinned by hash"
     );
+    // Chart and calendar share one panel of controls and one period slider,
+    // and the CSV's URL sits beside its download in the title row.
+    for id in [
+        "id=\"views\"",
+        "id=\"modes\"",
+        "id=\"ranges\"",
+        "id=\"stats\"",
+        "id=\"navigator\"",
+        "id=\"copy-url\"",
+        "id=\"from\"",
+        "id=\"to\"",
+    ] {
+        assert!(page.contains(id), "the page has {id}");
+    }
+    assert!(
+        page.contains("https://data.xfina.dev/v1/inflation/in-cpi.csv"),
+        "the CSV's URL is shown"
+    );
 
     // SBI is still planned, so it gets no page.
     assert!(!out.join("datasets/sbi-forex-card-usd").exists());

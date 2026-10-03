@@ -16,41 +16,53 @@
   <section class="card">
     <div class="card-header">
       <p class="crumb"><a href="/">All datasets</a> / <code>{{ID}}</code></p>
-      <h1 class="card-title" style="margin-top: 8px">{{TITLE}}</h1>
+      <div class="title-row">
+        <h1 class="card-title">{{TITLE}}</h1>
+        <div class="title-actions">
+          <a class="csv-url" href="/{{CSV_PATH}}"><code>https://data.xfina.dev/{{CSV_PATH}}</code></a>
+          <button type="button" class="btn btn-outline btn-sm" id="copy-url"
+            data-url="https://data.xfina.dev/{{CSV_PATH}}">Copy URL</button>
+          <a class="btn btn-sm" href="/{{CSV_PATH}}" download>Download CSV</a>
+        </div>
+      </div>
       <p class="card-description">{{SUMMARY}}</p>
       <div class="facts" style="margin-top: 12px">{{FACTS}}</div>
     </div>
 
-    <div class="toolbar">
-      <div>
-        <div class="segmented" role="group" aria-label="Show as">
-          <button type="button" class="btn btn-outline" data-tab="chart" aria-pressed="true">Chart</button>
-          <button type="button" class="btn btn-outline" data-tab="calendar" aria-pressed="false">Calendar</button>
-        </div>
-        <div class="segmented" role="group" aria-label="Values" id="views" hidden></div>
-        <div class="segmented" role="group" aria-label="Colour by" id="modes" hidden></div>
+    <div class="control-bar" aria-label="Controls">
+      <div class="control">
+        <span class="control-label">View</span>
+        <div class="segmented" role="group" aria-label="View" id="views"></div>
       </div>
-      <div>
-        <div class="segmented" role="group" aria-label="Range" id="ranges"></div>
-        <div class="segmented" role="group" aria-label="Span" id="spans" hidden></div>
-        <div class="year-nav" id="year-nav" hidden>
-          <button type="button" class="btn btn-outline btn-icon" id="prev-year" title="Previous year">‹</button>
-          <span id="year-label"></span>
-          <button type="button" class="btn btn-outline btn-icon" id="next-year" title="Next year">›</button>
-        </div>
-        <a class="btn btn-sm" href="/{{CSV_PATH}}" download>Download CSV</a>
+      <div class="control">
+        <span class="control-label">Values</span>
+        <div class="segmented" role="group" aria-label="Values" id="modes"></div>
       </div>
+      <div class="control">
+        <span class="control-label">Period</span>
+        <div class="segmented" role="group" aria-label="Period" id="ranges"></div>
+      </div>
+      <div class="control">
+        <span class="control-label">From – to</span>
+        <div class="date-range">
+          <input type="date" class="input" id="from" aria-label="Period starts">
+          <span aria-hidden="true">→</span>
+          <input type="date" class="input" id="to" aria-label="Period ends">
+        </div>
+      </div>
+      <p class="period" id="period"></p>
     </div>
+    <div class="stats" id="stats" aria-live="polite"></div>
 
     <div class="card-content">
       <div id="chart-panel">
         <div id="chart" role="img" aria-label="{{TITLE}}, chart"></div>
-        <p class="note" id="chart-note" hidden></p>
       </div>
       <div id="calendar-panel" hidden>
         <div class="calendar-wrap"><div id="calendar" role="img" aria-label="{{TITLE}}, calendar"></div></div>
-        <p class="note" id="calendar-note"></p>
       </div>
+      <div id="navigator" aria-label="Period: drag to choose"></div>
+      <p class="note" id="note"></p>
       <p class="note" id="status" role="status">Loading…</p>
     </div>
   </section>
@@ -58,7 +70,6 @@
   <section class="card">
     <div class="card-content">
       <dl class="about">
-        <dt>CSV</dt><dd><a href="/{{CSV_PATH}}"><code>https://data.xfina.dev/{{CSV_PATH}}</code></a></dd>
         <dt>Columns</dt><dd><code>{{COLUMNS}}</code></dd>
         <dt>Source</dt><dd>{{SOURCE}}</dd>
         <dt>Licence</dt><dd>{{LICENCE}}</dd>

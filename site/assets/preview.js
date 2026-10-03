@@ -1,18 +1,25 @@
 // A dataset's page: its published CSV as a chart or a calendar.
 //
+// The two views are twins. They share one set of controls — what to show
+// (the level, or its change), which period, chosen by preset or by dragging
+// the slider under either view — and one summary of that period, CAGR
+// included. Switching view keeps everything else as it was.
+//
 // Configured per dataset from the `preview` block in datasets.yaml, embedded
-// in the page as JSON. Tooltips and calendar cells show the CSV's own text, so
-// a value reads exactly as published (90.50 stays 90.50). Numbers are parsed
-// only to place points and pick colours, and every number computed here — a
-// change, a year-on-year rate — is labelled as computed and never published.
+// in the page as JSON. Tooltips and calendar cells show the CSV's own text,
+// so a value reads exactly as published (90.50 stays 90.50). Every number
+// computed here — a change, a CAGR — is labelled as computed and is never
+// written anywhere.
 
 (async () => {
   const config = JSON.parse(document.getElementById("config").textContent);
   const status = document.getElementById("status");
-  const RANGES = [["1Y", 1], ["5Y", 5], ["10Y", 10], ["All", 0]];
-  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const monthly = config.frequency === "monthly";
-  const yoyOffered = config.views.includes("year-on-year");
+  const DAY = 864e5;
+  const YEAR = 365.2425 * DAY;
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  copyButton();
 
   let rows;
   try {
@@ -24,39 +31,132 @@
     return;
   }
 
-  // The first drawn column is the one a calendar colours by.
-  const colourColumn = rows.columns.indexOf(config.lines[0].column);
-  const lastYear = Number(rows.keyed[rows.keyed.length - 1][0].slice(0, 4));
-  const firstYear = Number(rows.keyed[0][0].slice(0, 4));
-
-  const modes = monthly
-    ? [["mom", "Month-on-month"]].concat(yoyOffered ? [["yoy", "Year-on-year"]] : []).concat([["level", "Level"]])
-    : [["change", "Daily change"], ["level", "Level"]];
-
-  const state = {
-    tab: "chart",
-    view: "level",
-    range: monthly ? 0 : 5,
-    mode: modes[0][0],
-    year: lastYear,
-    span: 1,
-  };
-  const chart = echarts.init(document.getElementById("chart"));
-  const calendar = echarts.init(document.getElementById("calendar"));
+  // ---- Data ----------------------------------------------------------------
 
   // The published CSVs are written by this project and never quote a field,
   // so splitting on commas is the whole parser.
   function parse(text) {
     const [header, ...lines] = text.trim().split("\n");
-    const columns = header.split(",");
     const keyed = lines.map((line) => line.split(","));
-    return { columns, keyed, time: keyed.map((r) => toTime(r[0])) };
+    return { columns: header.split(","), keyed, time: keyed.map((r) => toTime(r[0])) };
   }
 
   function toTime(key) {
     const [y, m, d] = key.split("-").map(Number);
     return Date.UTC(y, m - 1, d || 1);
   }
+
+  const lines = config.lines.map((line) => ({ ...line, index: rows.columns.indexOf(line.column) }));
+  const level = lines.map((line) => rows.keyed.map((r) => Number(r[line.index])));
+  // Change on the previous published row: the previous trading day for a
+  // daily series, the previous month for a monthly one (which has no gaps).
+  const change = level.map((series) => series.map((v, i) => (i === 0 ? null : (v / series[i - 1] - 1) * 100)));
+  // This month over the same month a year earlier, where both are published.
+  const yoy = lines.map((line) => {
+    const byKey = new Map(rows.keyed.map((r) => [r[0], Number(r[line.index])]));
+    return rows.keyed.map((r) => {
+      const [y, m] = r[0].split("-");
+      const before = byKey.get(String(Number(y) - 1) + "-" + m);
+      return before ? (Number(r[line.index]) / before - 1) * 100 : null;
+    });
+  });
+
+  const first = rows.time[0];
+  const last = rows.time[rows.time.length - 1];
+  const yearOf = (t) => new Date(t).getUTCFullYear();
+  const firstYear = yearOf(first);
+
+  const MODES = [["level", "Level"], ["change", "Change"]]
+    .concat(config.views.includes("year-on-year") ? [["yoy", "YoY"]] : []);
+  // A preset is offered only when the series is longer than it: a 10Y
+  // button on six years of data would just mean All.
+  const span = (last - first) / YEAR;
+  const RANGES = [1, 5, 10].filter((n) => span > n).map((n) => [String(n), n + "Y"]).concat([["0", "All"]]);
+  const defaultPreset = !monthly && span > 5 ? 5 : 0;
+
+  const state = { view: "chart", mode: "level", preset: defaultPreset, from: first, to: last };
+  setPreset(state.preset);
+  readUrl();
+
+  // The page's address carries what is on screen, so a view can be shared
+  // and the same period opened on another dataset to compare them exactly:
+  // ?from=2024-01-01&to=2024-12-31, or ?period=1y, plus view and mode.
+  function readUrl() {
+    const q = new URLSearchParams(location.search);
+    if (["chart", "calendar"].includes(q.get("view"))) state.view = q.get("view");
+    if (MODES.some(([m]) => m === q.get("mode"))) state.mode = q.get("mode");
+    const period = (q.get("period") || "").toLowerCase();
+    const preset = period === "all" ? 0 : parseInt(period, 10);
+    if (period && RANGES.some(([n]) => Number(n) === preset)) setPreset(preset);
+    const from = parseDay(q.get("from")), to = parseDay(q.get("to"));
+    if (from != null || to != null) setPeriod(from ?? state.from, to ?? state.to);
+  }
+
+  function writeUrl() {
+    const q = new URLSearchParams();
+    if (state.view !== "chart") q.set("view", state.view);
+    if (state.mode !== "level") q.set("mode", state.mode);
+    if (state.preset == null) {
+      q.set("from", ymd(state.from));
+      q.set("to", ymd(state.to));
+    } else if (state.preset !== defaultPreset) {
+      q.set("period", state.preset ? state.preset + "y" : "all");
+    }
+    const query = q.toString();
+    history.replaceState(null, "", location.pathname + (query ? "?" + query : ""));
+  }
+
+  // `YYYY-MM-DD` as a UTC day, or null if it is not one.
+  function parseDay(text) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text || "");
+    if (!match) return null;
+    const t = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return Number.isNaN(t) ? null : t;
+  }
+
+  function ymd(t) {
+    return new Date(t).toISOString().slice(0, 10);
+  }
+
+  // A custom period from two days, in either order, kept inside the series.
+  // A monthly series counts a month from its first day, so a start date in
+  // mid-March still includes March.
+  function setPeriod(from, to) {
+    if (from > to) [from, to] = [to, from];
+    if (monthly) {
+      const start = new Date(from);
+      from = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1);
+    }
+    state.from = Math.max(first, Math.min(from, last));
+    state.to = Math.max(state.from, Math.min(to, last));
+    state.preset = null;
+  }
+
+  function setPreset(years) {
+    state.preset = years;
+    state.to = last;
+    if (!years) {
+      state.from = first;
+    } else {
+      const end = new Date(last);
+      state.from = Math.max(first, Date.UTC(end.getUTCFullYear() - years, end.getUTCMonth(), end.getUTCDate()));
+    }
+  }
+
+  function valuesFor(mode) {
+    return mode === "change" ? change : mode === "yoy" ? yoy : level;
+  }
+
+  // The index range of rows inside the chosen period.
+  function periodRows() {
+    let lo = 0;
+    while (lo < rows.time.length && rows.time[lo] < state.from) lo += 1;
+    let hi = rows.time.length - 1;
+    while (hi >= 0 && rows.time[hi] > state.to) hi -= 1;
+    return [lo, hi];
+  }
+
+  // ---- Shared helpers ------------------------------------------------------
 
   function css(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -71,224 +171,182 @@
     return (value > 0 ? "+" : "") + value.toFixed(2) + "%";
   }
 
-  // Year-on-year change for a monthly series: this month over the same month
-  // a year earlier. Only where both months are published; never filled.
-  function yearOnYear(index) {
-    const byKey = new Map(rows.keyed.map((r) => [r[0], Number(r[index])]));
-    return rows.keyed.map((r) => {
-      const [y, m] = r[0].split("-");
-      const before = byKey.get(String(Number(y) - 1) + "-" + m);
-      return before ? (Number(r[index]) / before - 1) * 100 : null;
-    });
+  function stamp(t) {
+    return new Date(t).toISOString().slice(0, monthly ? 7 : 10);
   }
 
-  // Change on the previous published row: the previous trading day for a
-  // daily series, the previous month for a monthly one. A monthly series has
-  // no gaps (the tool refuses one), so the previous row is the previous month.
-  function previousChange(index) {
-    return rows.keyed.map((r, i) =>
-      i === 0 ? null : (Number(r[index]) / Number(rows.keyed[i - 1][index]) - 1) * 100);
+  function escape(text) {
+    return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   }
+
+  // A published value short enough for a calendar cell: digits past the
+  // second decimal are cut, not rounded, and marked with an ellipsis.
+  function cellText(text) {
+    const [whole, fraction] = text.split(".");
+    return fraction && fraction.length > 2 ? whole + "." + fraction.slice(0, 2) + "…" : text;
+  }
+
+  function axisName() {
+    if (state.mode === "level") return config.unit;
+    if (state.mode === "yoy") return "% change on a year earlier";
+    return monthly ? "% change on the month before" : "% change on the previous published day";
+  }
+
+  // Diverging scales are symmetric about zero, clipped at the 95th percentile
+  // of the size of a change, so one outlier does not grey out every other
+  // cell; the tooltip still has the exact value.
+  function divergingBound(series) {
+    const sizes = series.filter((v) => v != null && Number.isFinite(v)).map(Math.abs).sort((a, b) => a - b);
+    return sizes.length ? sizes[Math.min(sizes.length - 1, Math.floor(sizes.length * 0.95))] || 1 : 1;
+  }
+
+  const ramp = (name) => css(name).split(",").map((c) => c.trim());
 
   // ---- Chart ---------------------------------------------------------------
 
+  const chart = echarts.init(document.getElementById("chart"));
+
   function renderChart() {
-    const yoy = state.view === "yoy";
+    const [lo, hi] = periodRows();
+    const ink = css("--foreground"), muted = css("--muted-foreground"), line = css("--border");
     const colours = [css("--series-1"), css("--series-2")];
-    const series = config.lines.map((line, i) => {
-      const index = rows.columns.indexOf(line.column);
-      const values = yoy ? yearOnYear(index) : rows.keyed.map((r) => Number(r[index]));
-      return {
-        name: line.label,
+    // Only the period's rows are drawn, so the y-axis fits the period rather
+    // than the whole history.
+    const slice = (series) => rows.time.slice(lo, hi + 1).map((t, j) => [t, series[lo + j]]);
+
+    let series;
+    if (state.mode === "change") {
+      // Change as bars in the calendar's colours — red for a rise, blue for
+      // a fall — so the two views read the same way.
+      const div = ramp("--div");
+      series = [{
+        name: lines[0].label + " change",
+        type: "bar",
+        barMaxWidth: 8,
+        data: slice(change[0]).map(([t, v]) => ({
+          value: [t, v],
+          itemStyle: { color: v == null ? line : v >= 0 ? div[4] : div[0] },
+        })),
+      }];
+    } else {
+      series = lines.map((l, k) => ({
+        name: l.label,
         type: "line",
         showSymbol: false,
         connectNulls: false,
         lineStyle: { width: 2 },
-        itemStyle: { color: colours[i] },
+        itemStyle: { color: colours[k] },
         emphasis: { focus: "series" },
-        data: rows.time.map((t, j) => [t, values[j]]),
-      };
-    });
-
-    const last = rows.time[rows.time.length - 1];
-    const lastDate = new Date(last);
-    const start = state.range
-      ? Date.UTC(lastDate.getUTCFullYear() - state.range, lastDate.getUTCMonth(), lastDate.getUTCDate())
-      : rows.time[0];
-    const ink = css("--foreground"), muted = css("--muted-foreground"), line = css("--border");
+        data: slice(valuesFor(state.mode)[k]),
+      }));
+    }
 
     chart.setOption({
       animation: false,
       textStyle: { color: ink, fontFamily: "inherit" },
-      grid: { left: 8, right: 16, top: 40, bottom: 56, containLabel: true },
-      legend: config.lines.length > 1 ? { top: 0, right: 0, textStyle: { color: ink }, icon: "roundRect" } : { show: false },
+      grid: { left: 8, right: 16, top: 40, bottom: 8, containLabel: true },
+      legend: series.length > 1 ? { top: 0, right: 0, textStyle: { color: ink }, icon: "roundRect" } : { show: false },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "line", lineStyle: { color: muted } },
         backgroundColor: css("--card"),
         borderColor: line,
         textStyle: { color: ink },
-        formatter: (points) => chartTooltip(points, yoy),
+        formatter: (points) => (points.length ? tooltip(lo + points[0].dataIndex) : ""),
       },
       xAxis: {
         type: "time",
+        min: state.from,
+        max: state.to,
         axisLine: { lineStyle: { color: line } },
         axisLabel: { color: muted, hideOverlap: true },
         splitLine: { show: false },
       },
       yAxis: {
         type: "value",
-        scale: !yoy,
-        name: yoy ? "% change on a year earlier" : config.unit,
+        scale: state.mode === "level",
+        name: axisName(),
         nameLocation: "end",
         nameTextStyle: { color: muted, align: "left" },
-        axisLabel: { color: muted, formatter: yoy ? "{value}%" : undefined },
+        axisLabel: { color: muted, formatter: state.mode === "level" ? undefined : "{value}%" },
         splitLine: { lineStyle: { color: line } },
       },
-      dataZoom: [
-        { type: "slider", startValue: start, endValue: last, height: 22, bottom: 8,
-          borderColor: line, textStyle: { color: muted }, brushSelect: false },
-      ],
       series,
     }, true);
-
-    const note = document.getElementById("chart-note");
-    note.hidden = !yoy;
-    note.textContent = yoy
-      ? "Computed in your browser from the published index; not itself a published value. Months without a value a year earlier are left blank."
-      : "";
-  }
-
-  function chartTooltip(points, yoy) {
-    if (!points.length) return "";
-    const row = rows.keyed[points[0].dataIndex];
-    const lines = points.map((p) => {
-      const index = rows.columns.indexOf(config.lines[p.seriesIndex].column);
-      const value = yoy
-        ? (p.value[1] == null ? "—" : p.value[1].toFixed(2) + "%")
-        : row[index];
-      return p.marker + " " + escape(p.seriesName) + ": <b>" + escape(value) + "</b>";
-    });
-    return "<div>" + escape(row[0]) + "</div>" + lines.join("<br>");
   }
 
   // ---- Calendar ------------------------------------------------------------
 
-  // What colours a cell, for every row: [value or null, scale kind, legend].
-  function colouring() {
-    if (state.mode === "level") {
-      return { values: rows.keyed.map((r) => Number(r[colourColumn])), diverging: false };
-    }
-    if (state.mode === "yoy") return { values: yearOnYear(colourColumn), diverging: true };
-    return { values: previousChange(colourColumn), diverging: true };
-  }
-
-  // Diverging scales are symmetric about zero, clipped at the 95th percentile
-  // of the size of a change so one outlier does not wash every other cell to
-  // grey. A clipped cell takes the end colour; its tooltip has the exact value.
-  function scale(values, diverging) {
-    const present = values.filter((v) => v != null && Number.isFinite(v));
-    if (!present.length) return [0, 1];
-    if (!diverging) return [Math.min(...present), Math.max(...present)];
-    const sizes = present.map(Math.abs).sort((a, b) => a - b);
-    const bound = sizes[Math.min(sizes.length - 1, Math.floor(sizes.length * 0.95))] || 1;
-    return [-bound, bound];
-  }
-
-  // Text on a strong cell flips to the opposite ink so it stays readable.
-  function labelInk(value, [min, max], diverging) {
-    const t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
-    const strength = diverging ? Math.abs(2 * t - 1) : t;
-    const strong = strength > 0.6;
-    return strong !== isDark() ? "#fafafa" : "#09090b";
-  }
-
-  function modeLabel() {
-    const column = config.lines[0].label;
-    if (state.mode === "level") return column;
-    if (state.mode === "yoy") return column + ", change on a year earlier";
-    if (state.mode === "mom") return column + ", change on the month before";
-    return column + ", change on the previous published day";
-  }
+  const calendar = echarts.init(document.getElementById("calendar"));
 
   function renderCalendar() {
-    const { values, diverging } = colouring();
-    const ramp = css(diverging ? "--div" : "--seq").split(",").map((c) => c.trim());
-    const ink = css("--foreground"), muted = css("--muted-foreground"), line = css("--border");
+    const coloured = valuesFor(state.mode)[0];
+    const diverging = state.mode !== "level";
+    const [lo, hi] = periodRows();
+    const inPeriod = (i) => i >= lo && i <= hi;
+    // Level scales to the period, so movement within it shows; a change
+    // scales to the whole series, so a calm stretch looks calm.
+    const shown = coloured.slice(lo, hi + 1).filter((v) => v != null);
+    const bound = divergingBound(coloured);
+    const range = diverging ? [-bound, bound]
+      : shown.length ? [Math.min(...shown), Math.max(...shown)] : [0, 1];
+    const muted = css("--muted-foreground"), line = css("--border"), background = css("--background");
 
     const base = {
       animation: false,
-      textStyle: { color: ink, fontFamily: "inherit" },
+      textStyle: { color: css("--foreground"), fontFamily: "inherit" },
       tooltip: {
         backgroundColor: css("--card"),
         borderColor: line,
-        textStyle: { color: ink },
+        textStyle: { color: css("--foreground") },
         formatter: (p) => {
           const data = Array.isArray(p.data) ? p.data : p.data.value;
-          return calendarTooltip(data[data.length - 1], values);
+          return tooltip(data[data.length - 1]);
         },
+      },
+      visualMap: {
+        type: "continuous",
+        seriesIndex: [0, 1],
+        dimension: monthly ? 2 : 1,
+        min: range[0],
+        max: range[1],
+        calculable: false,
+        orient: "horizontal",
+        left: monthly ? 52 : 56,
+        bottom: 0,
+        itemHeight: 160,
+        inRange: { color: ramp(diverging ? "--div" : "--seq") },
+        text: diverging ? ["rose", "fell"] : ["high", "low"],
+        textStyle: { color: muted },
+        formatter: (v) => (diverging ? percent(v) : v.toFixed(2)),
       },
     };
 
     if (monthly) {
-      renderMonthGrid(base, values, diverging, ramp, { muted, line });
+      renderMonthGrid(base, coloured, inPeriod, range, diverging, { muted, line, background });
     } else {
-      renderYears(base, values, diverging, ramp, { muted, line });
+      renderDecade(base, coloured, inPeriod, { muted, line, background });
     }
-
-    document.getElementById("calendar-note").textContent =
-      "Colour: " + modeLabel() + ". " +
-      (state.mode === "level" ? "" : "Changes are computed in your browser from the published values and are not themselves published. ") +
-      (monthly
-        ? "Cells show the published value."
-        : "Empty squares are days with no published rate: weekends, bank holidays, or days the source did not publish.");
   }
 
-  // `dimension` is where the colour value sits in a data item: [day, value, row]
-  // on a calendar, [month, year, value, row] on the month grid.
-  function visualMap(range, diverging, ramp, muted, dimension, seriesIndex = 0) {
-    return {
-      type: "continuous",
-      seriesIndex,
-      dimension,
-      min: range[0],
-      max: range[1],
-      calculable: false,
-      orient: "horizontal",
-      // Left-aligned, so it is in view on a phone before the calendar is
-      // scrolled sideways.
-      left: dimension === 1 ? 36 : 52,
-      bottom: 0,
-      itemHeight: 160,
-      inRange: { color: ramp },
-      text: diverging ? ["rose", "fell"] : ["high", "low"],
-      textStyle: { color: muted },
-      formatter: (v) => (diverging ? percent(v) : v.toFixed(2)),
-    };
-  }
-
-  // A daily series as GitHub draws contributions: a square per day, one strip
-  // per year, newest on top. A year, or a decade of strips at a smaller size.
-  function renderYears(base, values, diverging, ramp, { muted, line }) {
-    const span = state.span;
+  // A daily series as GitHub draws contributions: one strip per year the
+  // period touches, newest on top, at most a decade of them, ending where the
+  // period ends. Cells are sized to fill the width, as the chart does. Days
+  // in those years but outside the period are faded rather than hidden, so
+  // the period reads in context.
+  function renderDecade(base, coloured, inPeriod, { muted, line, background }) {
+    const endYear = yearOf(state.to);
+    const startYear = Math.max(yearOf(state.from), endYear - 9, firstYear);
     const years = [];
-    for (let y = state.year; y > state.year - span && y >= firstYear; y -= 1) years.push(y);
-    const shown = rows.keyed.map((r, i) => i)
-      .filter((i) => years.includes(Number(rows.keyed[i][0].slice(0, 4))));
-    // Level scales to the years shown, so movement within them is visible;
-    // changes scale to the whole series, so a calm year looks calm.
-    const range = diverging ? scale(values, true) : scale(shown.map((i) => values[i]), false);
+    for (let y = endYear; y >= startYear; y -= 1) years.push(y);
 
-    // Square cells, as large as fit across 53 weeks, smaller for a decade so
-    // ten strips stay on one screen.
-    const left = span > 1 ? 64 : 36, right = 8, monthRow = 24, gap = span > 1 ? 14 : 0;
-    const width = calendar.getDom().parentElement.clientWidth;
-    const cell = Math.max(8, Math.min(span > 1 ? 14 : 20, Math.floor((Math.max(width, 760) - left - right) / 54)));
+    const left = 56, gap = 10, monthRow = 24;
+    const width = Math.max(calendar.getDom().clientWidth, 640);
+    const cell = Math.max(8, Math.min(20, Math.floor((width - left - 8) / 54)));
     const strip = 7 * cell;
 
     const calendars = years.map((year, k) => ({
-      // No `right`: given both edges, ECharts stretches cells to fill the
-      // width and squares become bars. The cell size alone sets the width.
+      // No `right`: given both edges, ECharts stretches cells into bars.
       top: monthRow + k * (strip + gap),
       left,
       range: String(year),
@@ -296,176 +354,278 @@
       splitLine: { lineStyle: { color: muted, width: 1, opacity: 0.4 } },
       // A day with no value is an outline on the page background, so it can
       // never be read as the grey of "no change".
-      itemStyle: { color: css("--background"), borderColor: css("--border"), borderWidth: 1 },
-      yearLabel: { show: span > 1, position: "left", margin: 28, color: muted, fontSize: 12 },
+      itemStyle: { color: background, borderColor: line, borderWidth: 1 },
+      yearLabel: { show: true, position: "left", margin: 28, color: muted, fontSize: 12 },
       monthLabel: { show: k === 0, color: muted, nameMap: "en" },
-      dayLabel: {
-        color: muted, firstDay: 1, fontSize: span > 1 ? 9 : 12,
-        nameMap: span > 1 ? ["", "M", "", "W", "", "F", ""] : ["S", "M", "T", "W", "T", "F", "S"],
-      },
+      dayLabel: { color: muted, firstDay: 1, fontSize: 9, nameMap: ["", "M", "", "W", "", "F", ""] },
     }));
 
+    // Per year, three series: coloured in the period, coloured but faded
+    // outside it, and grey for the first day, which has nothing to change from.
     const series = [];
     years.forEach((year, k) => {
-      const inYear = shown.filter((i) => rows.keyed[i][0].startsWith(String(year)));
-      series.push({ type: "heatmap", coordinateSystem: "calendar", calendarIndex: k,
-        data: inYear.filter((i) => values[i] != null).map((i) => [rows.keyed[i][0], values[i], i]),
-        itemStyle: { borderColor: css("--background"), borderWidth: span > 1 ? 1 : 2 } });
-      // The first day of the series has no previous day to change from: it
-      // is drawn, so it is not mistaken for a missing day, but not coloured.
-      series.push({ type: "heatmap", coordinateSystem: "calendar", calendarIndex: k,
-        data: inYear.filter((i) => values[i] == null).map((i) => [rows.keyed[i][0], 0, i]),
-        itemStyle: { color: line, borderColor: css("--background"), borderWidth: span > 1 ? 1 : 2 } });
+      const buckets = [[], [], []];
+      rows.keyed.forEach((r, i) => {
+        if (Number(r[0].slice(0, 4)) !== year) return;
+        const v = coloured[i];
+        buckets[v == null ? 2 : inPeriod(i) ? 0 : 1].push([r[0], v == null ? 0 : v, i]);
+      });
+      buckets.forEach((data, b) => series.push({
+        type: "heatmap",
+        coordinateSystem: "calendar",
+        calendarIndex: k,
+        data,
+        itemStyle: b === 2
+          ? { color: line, borderColor: background, borderWidth: 1 }
+          : { borderColor: background, borderWidth: 1, opacity: b === 1 ? 0.25 : 1 },
+      }));
     });
+    const visualMap = visualMapFor(base, 1, series.map((_, i) => i).filter((i) => i % 3 !== 2));
 
-    calendar.getDom().style.height = monthRow + years.length * strip + (years.length - 1) * gap + 64 + "px";
+    calendar.getDom().style.height = monthRow + years.length * strip + (years.length - 1) * gap + 56 + "px";
     calendar.resize();
-    calendar.setOption(Object.assign(base, {
-      calendar: calendars,
-      visualMap: visualMap(range, diverging, ramp, muted, 1, series.map((_, i) => i).filter((i) => i % 2 === 0)),
-      series,
-    }), true);
-
-    const oldest = years[years.length - 1];
-    document.getElementById("year-label").textContent =
-      span > 1 ? oldest + "–" + state.year : String(state.year);
-    document.getElementById("prev-year").disabled = oldest <= firstYear;
-    document.getElementById("next-year").disabled = state.year >= lastYear;
-    document.getElementById("prev-year").title = span > 1 ? "Previous decade" : "Previous year";
-    document.getElementById("next-year").title = span > 1 ? "Next decade" : "Next year";
+    calendar.setOption({ ...base, visualMap, calendar: calendars, series }, true);
   }
 
-  // A monthly series: years down, months across, each cell its published value.
-  function renderMonthGrid(base, values, diverging, ramp, { muted, line }) {
-    const years = [];
-    for (let y = lastYear; y >= firstYear; y -= 1) years.push(String(y));
-    const range = scale(values, diverging);
-    const cells = rows.keyed.map((r, i) => {
-      const [y, m] = r[0].split("-");
-      const value = values[i];
-      const coloured = value != null;
-      return {
-        value: [Number(m) - 1, years.indexOf(y), coloured ? value : 0, i],
-        label: { color: coloured ? labelInk(value, range, diverging) : css("--foreground") },
-        itemStyle: coloured ? undefined : { color: line },
-      };
-    });
-    const coloured = cells.filter((c, i) => values[i] != null);
-    const uncoloured = cells.filter((c, i) => values[i] == null);
+  function visualMapFor(base, dimension, seriesIndex) {
+    return { ...base.visualMap, dimension, seriesIndex };
+  }
 
-    // Shorter rows for a long series, so seventy years stay scrollable
-    // rather than becoming a page of their own.
+  // A monthly series: a row per year in the period, newest on top, twelve
+  // months across, each cell its published value.
+  function renderMonthGrid(base, coloured, inPeriod, range, diverging, { muted, line, background }) {
+    const years = [];
+    for (let y = yearOf(state.to); y >= yearOf(state.from); y -= 1) years.push(String(y));
     const compact = years.length > 20;
+    const labelInk = (v) => {
+      const t = Math.max(0, Math.min(1, (v - range[0]) / (range[1] - range[0] || 1)));
+      const strong = (diverging ? Math.abs(2 * t - 1) : t) > 0.6;
+      return strong !== isDark() ? "#fafafa" : "#09090b";
+    };
+    const buckets = [[], [], []];
+    rows.keyed.forEach((r, i) => {
+      const [y, m] = r[0].split("-");
+      const row = years.indexOf(y);
+      if (row < 0) return;
+      const v = coloured[i];
+      buckets[v == null ? 2 : inPeriod(i) ? 0 : 1].push({
+        value: [Number(m) - 1, row, v == null ? 0 : v, i],
+        label: { color: v == null ? css("--foreground") : labelInk(v) },
+      });
+    });
+    const label = {
+      show: true,
+      fontSize: compact ? 10 : 11,
+      formatter: (p) => cellText(rows.keyed[p.data.value[3]][lines[0].index]),
+    };
+    const series = buckets.map((data, b) => ({
+      type: "heatmap",
+      data,
+      label,
+      itemStyle: b === 2
+        ? { color: line, borderColor: background, borderWidth: 2 }
+        : { borderColor: background, borderWidth: 2, opacity: b === 1 ? 0.25 : 1 },
+    }));
+
     calendar.getDom().style.height = (compact ? 22 : 30) * years.length + 96 + "px";
     calendar.resize();
-    calendar.setOption(Object.assign(base, {
+    calendar.setOption({
+      ...base,
+      visualMap: visualMapFor(base, 2, [0, 1]),
       grid: { top: 24, left: 52, right: 8, bottom: 64 },
       xAxis: { type: "category", data: MONTHS, position: "top", axisLine: { show: false },
-        axisTick: { show: false }, axisLabel: { color: muted }, splitArea: { show: false } },
+        axisTick: { show: false }, axisLabel: { color: muted } },
       // Category axes run bottom-up; inverted, the newest year is on top.
-      yAxis: { type: "category", data: years, inverse: true, axisLine: { show: false }, axisTick: { show: false },
-        axisLabel: { color: muted } },
-      visualMap: visualMap(range, diverging, ramp, muted, 2),
-      series: [
-        { type: "heatmap", data: coloured,
-          label: { show: true, fontSize: compact ? 10 : 11, formatter: (p) => cellText(rows.keyed[p.data.value[3]][colourColumn]) },
-          itemStyle: { borderColor: css("--background"), borderWidth: 2 } },
-        { type: "heatmap", data: uncoloured,
-          label: { show: true, fontSize: compact ? 10 : 11, formatter: (p) => cellText(rows.keyed[p.data.value[3]][colourColumn]) },
-          itemStyle: { color: line, borderColor: css("--background"), borderWidth: 2 } },
-      ],
-    }), true);
+      yAxis: { type: "category", data: years, inverse: true, axisLine: { show: false },
+        axisTick: { show: false }, axisLabel: { color: muted } },
+      series,
+    }, true);
   }
 
-  // A published value short enough for a calendar cell. Digits past the
-  // second decimal are cut, not rounded, and the cut is marked with an
-  // ellipsis; the tooltip always has the whole text.
-  function cellText(text) {
-    const [whole, fraction] = text.split(".");
-    return fraction && fraction.length > 2 ? whole + "." + fraction.slice(0, 2) + "…" : text;
-  }
-
-  // Every published value of the row, as published, then the computed number.
-  function calendarTooltip(index, values) {
+  // Every published value of the row, as published, then the computed one.
+  function tooltip(index) {
     const row = rows.keyed[index];
-    const lines = config.lines.map((l) =>
-      escape(l.label) + ": <b>" + escape(row[rows.columns.indexOf(l.column)]) + "</b>");
+    const parts = lines.map((l) => escape(l.label) + ": <b>" + escape(row[l.index]) + "</b>");
     if (state.mode !== "level") {
-      const value = values[index];
-      const since = index > 0 ? rows.keyed[index - 1][0] : null;
+      const v = valuesFor(state.mode)[0][index];
       const what = state.mode === "yoy" ? "on a year earlier"
-        : state.mode === "mom" ? "on the month before" : "since " + since;
-      lines.push(value == null ? "<span>No earlier value to compare</span>"
-        : "Change " + escape(what) + ": <b>" + percent(value) + "</b>");
+        : index > 0 ? "since " + rows.keyed[index - 1][0] : "";
+      parts.push(v == null ? "No earlier value to compare" : "Change " + escape(what) + ": <b>" + percent(v) + "</b>");
     }
-    return "<div>" + escape(row[0]) + "</div>" + lines.join("<br>");
+    return "<div>" + escape(row[0]) + "</div>" + parts.join("<br>");
+  }
+
+  // ---- Period: presets, the slider, and its summary -------------------------
+
+  const nav = echarts.init(document.getElementById("navigator"));
+  let steering = false;
+
+  // A slim overview of the whole series with a slider over it: the same
+  // control under the chart and under the calendar.
+  function renderNavigator() {
+    const muted = css("--muted-foreground"), line = css("--border");
+    steering = true;
+    nav.setOption({
+      animation: false,
+      grid: { left: 0, right: 0, top: 0, bottom: 0 },
+      xAxis: { type: "time", min: first, max: last, show: false },
+      yAxis: { type: "value", scale: true, show: false },
+      series: [{ type: "line", showSymbol: false, silent: true, lineStyle: { opacity: 0 },
+        data: rows.time.map((t, i) => [t, level[0][i]]) }],
+      dataZoom: [{
+        type: "slider",
+        xAxisIndex: 0,
+        startValue: state.from,
+        endValue: state.to,
+        left: 8, right: 8, top: 4, bottom: 4,
+        brushSelect: false,
+        borderColor: line,
+        textStyle: { color: muted },
+        labelFormatter: (v) => stamp(v),
+      }],
+    }, true);
+    steering = false;
+  }
+
+  nav.on("datazoom", () => {
+    if (steering) return;
+    const zoom = nav.getOption().dataZoom[0];
+    const width = last - first;
+    state.from = first + width * (zoom.start / 100);
+    state.to = first + width * (zoom.end / 100);
+    state.preset = null;
+    press(document.getElementById("ranges"), null);
+    schedule();
+  });
+
+  // The period's own summary: each line's first and last published value in
+  // it, the change between them, and that change as a compound annual rate.
+  function renderStats() {
+    const [lo, hi] = periodRows();
+    const period = document.getElementById("period");
+    const stats = document.getElementById("stats");
+    if (lo > hi) {
+      period.textContent = "No published values in this period.";
+      stats.innerHTML = "";
+      return;
+    }
+    const years = (rows.time[hi] - rows.time[lo]) / YEAR;
+    period.textContent = rows.keyed[lo][0] + " → " + rows.keyed[hi][0] + " · " +
+      (years >= 1 ? years.toFixed(1) + " years" : Math.round(years * 365.2425) + " days") +
+      " · " + (hi - lo + 1) + " rows";
+    stats.innerHTML = lines.map((l, k) => {
+      const a = level[k][lo], b = level[k][hi];
+      const total = (b / a - 1) * 100;
+      // Annualised pro rata over whatever span is chosen, a few weeks
+      // included. A period with no length (a single row) has no rate.
+      const cagr = years > 0 ? percent((Math.pow(b / a, 1 / years) - 1) * 100) + " a year" : "—";
+      const item = (name, value) => '<span class="stat-item"><span>' + name + "</span>" + value + "</span>";
+      return '<div class="stat"><span class="stat-name">' + escape(l.label) + "</span>" +
+        item("From", escape(rows.keyed[lo][l.index]) + " → " + escape(rows.keyed[hi][l.index])) +
+        item("Change", percent(total)) +
+        item("CAGR", cagr) + "</div>";
+    }).join("");
+  }
+
+  function renderNote() {
+    const parts = ["Change and CAGR are computed in your browser from the published values; they are not themselves published."];
+    if (state.view === "calendar") {
+      parts.push(monthly
+        ? "Cells show the published value of " + lines[0].label + "; their colour follows Values."
+        : "Colour follows " + lines[0].label + ". Empty squares are days with no published value: weekends, bank holidays, or days the source did not publish. Faded squares are outside the chosen period. At most a decade is drawn; drag the period back for earlier years.");
+    } else if (state.mode === "change" && lines.length > 1) {
+      parts.push("Change is drawn for " + lines[0].label + ".");
+    }
+    document.getElementById("note").textContent = parts.join(" ");
   }
 
   // ---- Controls ------------------------------------------------------------
 
-  function escape(text) {
-    return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  function press(group, value) {
+    group.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.value === value)));
   }
 
-  function buttons(group, options, current, onPick) {
+  function buttons(id, options, current, onPick) {
+    const group = document.getElementById(id);
     group.innerHTML = options.map(([value, label]) =>
       '<button type="button" class="btn btn-outline" data-value="' + value + '">' + escape(label) + "</button>").join("");
-    const press = (value) => group.querySelectorAll("button").forEach((b) =>
-      b.setAttribute("aria-pressed", String(b.dataset.value === value)));
     group.addEventListener("click", (e) => {
       const button = e.target.closest("button");
       if (!button) return;
-      press(button.dataset.value);
+      press(group, button.dataset.value);
       onPick(button.dataset.value);
     });
-    press(String(current));
+    press(group, current == null ? null : String(current));
+  }
+
+  buttons("views", [["chart", "Chart"], ["calendar", "Calendar"]], state.view, (v) => { state.view = v; render(); });
+  buttons("modes", MODES, state.mode, (v) => { state.mode = v; render(); });
+  buttons("ranges", RANGES, state.preset, (v) => {
+    setPreset(Number(v));
+    renderNavigator();
+    render();
+  });
+
+  // Exact start and end days. They follow the presets and the slider, and
+  // setting either one makes the period custom.
+  const fromInput = document.getElementById("from");
+  const toInput = document.getElementById("to");
+  for (const input of [fromInput, toInput]) {
+    input.min = ymd(first);
+    input.max = ymd(last);
+    input.addEventListener("change", () => {
+      const from = parseDay(fromInput.value), to = parseDay(toInput.value);
+      if (from == null || to == null) return;
+      setPeriod(from, to);
+      press(document.getElementById("ranges"), null);
+      renderNavigator();
+      render();
+    });
+  }
+
+  function copyButton() {
+    const button = document.getElementById("copy-url");
+    button.addEventListener("click", async () => {
+      try {
+        await window.navigator.clipboard.writeText(button.dataset.url);
+        button.textContent = "Copied";
+      } catch {
+        button.textContent = "Copy failed";
+      }
+      setTimeout(() => { button.textContent = "Copy URL"; }, 1500);
+    });
+  }
+
+  let pending = false;
+  function schedule() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; render(); });
   }
 
   function render() {
-    const onChart = state.tab === "chart";
+    const onChart = state.view === "chart";
     document.getElementById("chart-panel").hidden = !onChart;
     document.getElementById("calendar-panel").hidden = onChart;
-    document.getElementById("ranges").hidden = !onChart;
-    document.getElementById("views").hidden = !onChart || !config.views.length;
-    document.getElementById("modes").hidden = onChart;
-    document.getElementById("year-nav").hidden = onChart || monthly;
-    document.getElementById("spans").hidden = onChart || monthly;
-    document.querySelectorAll("[data-tab]").forEach((b) =>
-      b.setAttribute("aria-pressed", String(b.dataset.tab === state.tab)));
     if (onChart) {
       renderChart();
       chart.resize();
     } else {
       renderCalendar();
     }
+    renderStats();
+    renderNote();
+    fromInput.value = ymd(state.from);
+    toInput.value = ymd(state.to);
+    writeUrl();
   }
 
-  buttons(document.getElementById("ranges"), RANGES.map(([l, y]) => [String(y), l]), state.range,
-    (v) => { state.range = Number(v); renderChart(); });
-  if (config.views.length) {
-    buttons(document.getElementById("views"),
-      [["level", config.lines.length > 1 ? "Values" : config.lines[0].label]].concat(yoyOffered ? [["yoy", "YoY %"]] : []),
-      state.view, (v) => { state.view = v; renderChart(); });
-  }
-  buttons(document.getElementById("modes"), modes, state.mode, (v) => { state.mode = v; renderCalendar(); });
-
-  document.querySelectorAll("[data-tab]").forEach((b) =>
-    b.addEventListener("click", () => { state.tab = b.dataset.tab; render(); }));
-  buttons(document.getElementById("spans"), [["1", "Year"], ["10", "Decade"]], state.span,
-    (v) => { state.span = Number(v); renderCalendar(); });
-  // Arrows step by what is shown: a year at a time, or a decade.
-  document.getElementById("prev-year").addEventListener("click", () => {
-    state.year -= state.span; renderCalendar();
-  });
-  document.getElementById("next-year").addEventListener("click", () => {
-    state.year = Math.min(lastYear, state.year + state.span); renderCalendar();
-  });
-  window.addEventListener("resize", () => { chart.resize(); calendar.resize(); });
-  // Colours are read from the stylesheet, so a theme change needs a redraw.
-  // theme.js announces both the toggle and an OS change it is following.
-  window.addEventListener("themechange", render);
+  window.addEventListener("resize", () => { nav.resize(); render(); });
+  // Colours come from the stylesheet, so a theme change needs a redraw.
+  window.addEventListener("themechange", () => { renderNavigator(); render(); });
 
   status.textContent = "";
   status.hidden = true;
+  renderNavigator();
   render();
 })();

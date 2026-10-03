@@ -60,6 +60,13 @@ async fn fetch_one(http: &reqwest::Client, url: &str) -> std::result::Result<Vec
     Ok(bytes.to_vec())
 }
 
+/// The date a sheet prints, if it parses.
+pub fn sheet_date(bytes: &[u8]) -> Option<NaiveDate> {
+    parse_sbi_forex_card_rates(ParseRequest::new(bytes))
+        .ok()
+        .map(|parsed| parsed.data.date)
+}
+
 /// Derive rows for `currency` from archived sheets.
 ///
 /// Every sheet must parse. One that does not fails the whole derivation and

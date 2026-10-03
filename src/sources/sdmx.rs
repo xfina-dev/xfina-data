@@ -51,13 +51,20 @@ impl Query<'_> {
                 }
                 (url, "text/csv")
             }
-            SdmxProvider::Imf => (
-                format!(
+            SdmxProvider::Imf => {
+                let mut url = format!(
                     "https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/{}/{}/{}",
                     self.flow, self.version, self.key
-                ),
-                "application/vnd.sdmx.data+csv;version=2.0.0",
-            ),
+                );
+                // SDMX 3.0 filters periods with c[TIME_PERIOD]=ge:<period>.
+                // A day is cut to its month, which the IMF accepts for any
+                // frequency, so one window works for monthly and annual keys.
+                if let Some(from) = from {
+                    let month = &from[..from.len().min(7)];
+                    url.push_str(&format!("?c%5BTIME_PERIOD%5D=ge:{month}"));
+                }
+                (url, "application/vnd.sdmx.data+csv;version=2.0.0")
+            }
         }
     }
 }
@@ -78,13 +85,6 @@ pub async fn fetch(
                 .to_string(),
         ),
         (false, None) => None,
-    };
-    // Only the BIS takes a start period; the IMF series is small enough to
-    // ask for whole every time.
-    let from = if query.provider == SdmxProvider::Bis {
-        from
-    } else {
-        None
     };
     let (url, accept) = query.request(from.as_deref());
 

@@ -35,6 +35,7 @@ min_tool_version: 0.1.0
 archive:
   bucket: xfina-data-raw
   public_url: https://raw.data.xfina.dev
+  budget_bytes: 10000000000
 datasets:
   - id: in-cpi
     title: India CPI

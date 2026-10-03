@@ -22,6 +22,12 @@ pub struct Metadata {
     pub generated_by: String,
     /// Where every manifest's `key` resolves, e.g. `https://raw.data.xfina.dev`.
     pub raw_base_url: String,
+    /// Bytes the raw archive holds across every dataset, published or not.
+    #[serde(default)]
+    pub raw_bytes: u64,
+    /// The archive's storage budget, in bytes.
+    #[serde(default)]
+    pub raw_budget_bytes: u64,
     /// Every published series.
     pub datasets: Vec<Entry>,
 }
@@ -60,6 +66,9 @@ pub struct Entry {
     pub manifest: String,
     /// How many raw files the manifest records.
     pub raw_files: usize,
+    /// How many bytes those files take in the archive.
+    #[serde(default)]
+    pub raw_bytes: u64,
     /// Archived documents no parser can read, by sha256, with the reason.
     /// The periods they would have dated have no rows.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -114,13 +123,20 @@ pub fn write_metadata(catalog: &Catalog, data: &DataDir, now: DateTime<Utc>) -> 
             updated_at,
             manifest: relative(data.root(), &manifest),
             raw_files: Manifest::load(&manifest)?.len(),
+            raw_bytes: Manifest::load(&manifest)?.bytes(),
             unreadable: dataset.raw.unreadable.clone(),
         });
     }
 
+    let mut raw_bytes = 0;
+    for dataset in &catalog.datasets {
+        raw_bytes += Manifest::load(&data.manifest(dataset))?.bytes();
+    }
     let metadata = Metadata {
         generated_by: format!("xfina-data {TOOL_VERSION}"),
         raw_base_url: catalog.archive.public_url.clone(),
+        raw_bytes,
+        raw_budget_bytes: catalog.archive.budget_bytes,
         datasets: entries,
     };
     let path = data.metadata();

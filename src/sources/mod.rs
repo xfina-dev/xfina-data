@@ -92,6 +92,19 @@ pub async fn fetch(
     }
 }
 
+/// The date a document says it is for, when its format carries one.
+///
+/// Used to pick which of several identical archived copies keeps its key: a
+/// copy named after the date the document prints is the honest name, and an
+/// upstream archive has been seen to store sheets under day/month-swapped
+/// names too. API responses carry no single date, so they answer None.
+pub fn document_date(dataset: &Dataset, bytes: &[u8]) -> Option<NaiveDate> {
+    match &dataset.source {
+        Source::SbiForexCard { .. } => sbi::sheet_date(bytes),
+        Source::MospiCpi { .. } | Source::Sdmx { .. } => None,
+    }
+}
+
 /// Derive this dataset's series from archived documents, in manifest order.
 pub fn derive(dataset: &Dataset, docs: &[(&RawFile, Vec<u8>)]) -> Result<Derived> {
     let columns = &dataset.output.columns;

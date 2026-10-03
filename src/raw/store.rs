@@ -192,6 +192,32 @@ impl Store {
         }
     }
 
+    /// Delete an object.
+    ///
+    /// The archive never deletes, with one exception: removing an exact
+    /// duplicate whose bytes another key still holds, during the one-time
+    /// cleanup `raw dedupe` performs. Nothing else calls this.
+    pub async fn delete(&self, key: &str) -> Result<()> {
+        match self {
+            Store::R2 { client, bucket, .. } => {
+                client
+                    .delete_object()
+                    .bucket(bucket)
+                    .key(key)
+                    .send()
+                    .await
+                    .map_err(|e| store_error("deleting", key, &e))?;
+                Ok(())
+            }
+            Store::Dir(root) => fs::remove_file(root.join(key))
+                .map_err(|e| XfinaDataError::Store(format!("deleting {key}: {e}"))),
+            Store::Public(_) => Err(XfinaDataError::Store(format!(
+                "cannot delete {key}: the public archive is read-only"
+            ))),
+            Store::DryRun(_) => Ok(()),
+        }
+    }
+
     /// Read an object's bytes.
     pub async fn get(&self, key: &str) -> Result<Vec<u8>> {
         match self {

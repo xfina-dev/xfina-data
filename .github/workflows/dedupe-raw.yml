@@ -1,0 +1,70 @@
+name: Dedupe Raw
+
+# Removes archived files whose bytes another archived file already holds:
+# the one-time cleanup of copies an early import stored before imports
+# deduplicated by content. The only workflow that deletes from the archive.
+#
+# Run it first with `apply` off: it reports every file it would delete and
+# which identical file stays. Run it again with `apply` on to delete them.
+# Each kept file is read back and its sha256 checked before any copy of it
+# is deleted.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: Dataset whose archive to clean
+        required: true
+        default: sbi-forex-card-usd
+      apply:
+        description: Delete the duplicates (off = report only)
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  dedupe:
+    name: Remove duplicate raw files
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/data-branch
+
+      - uses: ./.github/actions/build-tool
+
+      - name: Report
+        if: ${{ !inputs.apply }}
+        env:
+          DATASET: ${{ inputs.dataset }}
+        run: ./target/release/xfina-data raw dedupe --data data --dataset "$DATASET"
+
+      - name: Delete duplicates
+        if: ${{ inputs.apply }}
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATASET: ${{ inputs.dataset }}
+        run: ./target/release/xfina-data raw dedupe --data data --dataset "$DATASET" --apply
+
+      - name: Commit the manifest
+        if: ${{ inputs.apply }}
+        env:
+          DATASET: ${{ inputs.dataset }}
+        run: |
+          cd data
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to record."
+            exit 0
+          fi
+          git commit -q -m "raw: remove duplicate files from $DATASET"
+          git push origin HEAD:data

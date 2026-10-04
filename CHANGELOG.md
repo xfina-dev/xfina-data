@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **The site is a Vue app on xfina-ui 0.5.0**, published on npm, the theme and shadcn components every xfina.dev site now shares. Its pages are rendered to static HTML at build time, so each dataset page still arrives with its title, summary, facts and source, for readers and search engines alike. Visible changes:
+- **The site is a Vue app on xfina-ui 0.6.0**, published on npm, the theme and shadcn components every xfina.dev site now shares. Its pages are rendered to static HTML at build time, so each dataset page still arrives with its title, summary, facts and source, for readers and search engines alike. Visible changes:
+  - Each dataset page shows its CSV's URL and the copy button as one control. The button keeps its width when it says "Copied", which it confirms with a check, as an added item is marked.
   - The header, dataset picker and buttons are xfina-ui's shadcn components. The picker is a shadcn Select with the datasets grouped as on the index.
   - Buttons and selections are the brand blue from the logo: the chosen view, values and period are outlined in blue rather than filled.
   - The header carries only the family's own navigation; Building Wealth and Xsteer are in the family cards' "Used by" row.

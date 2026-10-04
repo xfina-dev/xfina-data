@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **The site is a Vue app on xfina-ui 0.4.0**, published on npm, the theme and shadcn components every xfina.dev site now shares. Its pages are rendered to static HTML at build time, so each dataset page still arrives with its title, summary, facts and source, for readers and search engines alike. Visible changes:
+- **The site is a Vue app on xfina-ui 0.5.0**, published on npm, the theme and shadcn components every xfina.dev site now shares. Its pages are rendered to static HTML at build time, so each dataset page still arrives with its title, summary, facts and source, for readers and search engines alike. Visible changes:
   - The header, dataset picker and buttons are xfina-ui's shadcn components. The picker is a shadcn Select with the datasets grouped as on the index.
-  - The chosen view, values and period are outlined rather than filled.
+  - Buttons and selections are the brand blue from the logo: the chosen view, values and period are outlined in blue rather than filled.
+  - The header carries only the family's own navigation; Building Wealth and Xsteer are in the family cards' "Used by" row.
   - Every page ends with the Xfina family cards and the products built on them, in place of a footer.
   - Charts load a smaller ECharts build (only the chart types used), from the site rather than a CDN.
   - The chart and calendar, their colours, periods and summaries are unchanged; their arithmetic is now unit-tested.

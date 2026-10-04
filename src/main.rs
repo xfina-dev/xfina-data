@@ -100,7 +100,7 @@ enum Commands {
     #[command(subcommand)]
     Config(ConfigCommands),
 
-    /// Build the published site into a directory
+    /// Write what the site in site/ builds its pages from
     #[command(subcommand)]
     Site(SiteCommands),
 }
@@ -194,17 +194,14 @@ enum ConfigCommands {
 
 #[derive(Subcommand, Debug)]
 enum SiteCommands {
-    /// Render the data directory, landing page and headers into a directory
-    Build {
+    /// Write the site's build input: every dataset with its preview and, once
+    /// published, its facts from metadata.json
+    Data {
         #[command(flatten)]
         paths: Paths,
 
-        /// The page template and headers
-        #[arg(long, default_value = "site")]
-        site: PathBuf,
-
-        /// Destination directory
-        #[arg(long, default_value = "dist")]
+        /// Where to write site-data.json
+        #[arg(long, default_value = "site/src/site-data.json")]
         out: PathBuf,
     },
 }
@@ -339,10 +336,10 @@ async fn main() -> Result<()> {
         Commands::Config(ConfigCommands::Validate { config, base }) => {
             validate_config(config, base)?
         }
-        Commands::Site(SiteCommands::Build { paths, site, out }) => {
+        Commands::Site(SiteCommands::Data { paths, out }) => {
             let catalog = Catalog::load_validated(&paths.config)?;
-            publish::build_site(&catalog, &DataDir::new(&paths.data), &site, &out)?;
-            println!("site built in {}", out.display());
+            publish::write_site_data(&catalog, &DataDir::new(&paths.data), &out)?;
+            println!("site data written to {}", out.display());
         }
     }
     Ok(())

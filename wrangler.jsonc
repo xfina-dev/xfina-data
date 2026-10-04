@@ -5,9 +5,10 @@
 
   // An assets-only Worker: there is no script, so every request is served
   // straight from the edge with no Worker invocation and no per-request cost.
-  // `xfina-data site build` writes ./dist from the data branch.
+  // The Vue app in site/ builds ./site/dist: static pages from the data
+  // branch's site-data.json, with the data branch's v1/ copied in.
   "assets": {
-    "directory": "./dist",
+    "directory": "./site/dist",
     "not_found_handling": "404-page"
   },
 

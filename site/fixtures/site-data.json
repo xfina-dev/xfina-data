@@ -1,0 +1,118 @@
+{
+  "groups": [
+    {
+      "name": "USD/INR Rates",
+      "datasets": [
+        {
+          "id": "sbi-forex-card-usd",
+          "title": "SBI forex card rates, USD TT buy and TT sell",
+          "name": "SBI forex card",
+          "summary": "What SBI charges to convert between rupees and US dollars on a forex card, per the rate sheet it publishes each banking day. TT buy is what a dollar fetches; TT sell is what a dollar costs.",
+          "unit": "INR per USD",
+          "frequency": "daily",
+          "lines": [
+            {
+              "column": "tt_buy",
+              "label": "TT buy"
+            },
+            {
+              "column": "tt_sell",
+              "label": "TT sell"
+            }
+          ],
+          "views": []
+        },
+        {
+          "id": "bis-usd-inr",
+          "title": "USD/INR exchange rate, daily, from the BIS",
+          "name": "BIS USD/INR",
+          "summary": "Rupees per US dollar on each business day since 1973, as the Bank for International Settlements publishes it. A reference rate rather than a price anyone transacts at; SBI's card rates are what a transfer costs.",
+          "unit": "INR per USD",
+          "frequency": "daily",
+          "lines": [
+            {
+              "column": "inr_per_usd",
+              "label": "USD/INR"
+            }
+          ],
+          "views": [],
+          "published": {
+            "path": "v1/fx/bis-usd-inr.csv",
+            "columns": [
+              "date",
+              "inr_per_usd"
+            ],
+            "first": "2026-09-25",
+            "last": "2026-09-29",
+            "rows": 3,
+            "updated": "2026-10-02",
+            "licence": "Source: BIS (data.bis.org). BIS statistics may be reproduced freely with this attribution and at no additional charge, under the BIS terms of permitted use: https://data.bis.org/help/legal",
+            "source": {
+              "text": "BIS Data Portal, WS_XRU series D.IN.INR.A",
+              "url": "https://data.bis.org/topics/XRU"
+            },
+            "manifest": "v1/manifests/bis-usd-inr.csv",
+            "raw_files": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inflation",
+      "datasets": [
+        {
+          "id": "in-cpi",
+          "title": "India CPI, all-India combined, general index",
+          "name": "MoSPI CPI",
+          "summary": "India's consumer price index for all of India, rural and urban combined, as MoSPI publishes it on its 2024 base. Divide two months' values to get the inflation between them.",
+          "unit": "Index, 2024 = 100",
+          "frequency": "monthly",
+          "lines": [
+            {
+              "column": "index",
+              "label": "CPI"
+            }
+          ],
+          "views": [
+            "year-on-year"
+          ],
+          "published": {
+            "path": "v1/inflation/in-cpi.csv",
+            "columns": [
+              "month",
+              "index"
+            ],
+            "first": "2024-01",
+            "last": "2025-12",
+            "rows": 24,
+            "updated": "2026-10-02",
+            "licence": "Ministry of Statistics and Programme Implementation, open data",
+            "source": {
+              "text": "MoSPI eSankhyiki CPI, base 2024, Back and Current series",
+              "url": "https://esankhyiki.mospi.gov.in/macroindicators?product=cpi"
+            },
+            "manifest": "v1/manifests/in-cpi.csv",
+            "raw_files": 0
+          }
+        },
+        {
+          "id": "in-cpi-imf",
+          "title": "India CPI, monthly since 1957, from the IMF",
+          "name": "IMF CPI",
+          "summary": "India's consumer price index back to 1957, which the IMF builds by linking India's earlier national series onto the 2024 = 100 base. It matches MoSPI's index from 2025; before 2013, it is the only monthly India CPI here.",
+          "unit": "Index, 2024 = 100",
+          "frequency": "monthly",
+          "lines": [
+            {
+              "column": "index",
+              "label": "CPI"
+            }
+          ],
+          "views": [
+            "year-on-year"
+          ]
+        }
+      ]
+    }
+  ]
+}

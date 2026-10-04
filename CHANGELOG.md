@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The site is a Vue app on xfina-ui 0.4.0**, published on npm, the theme and shadcn components every xfina.dev site now shares. Its pages are rendered to static HTML at build time, so each dataset page still arrives with its title, summary, facts and source, for readers and search engines alike. Visible changes:
+  - The header, dataset picker and buttons are xfina-ui's shadcn components. The picker is a shadcn Select with the datasets grouped as on the index.
+  - The chosen view, values and period are outlined rather than filled.
+  - Every page ends with the Xfina family cards and the products built on them, in place of a footer.
+  - Charts load a smaller ECharts build (only the chart types used), from the site rather than a CDN.
+  - The chart and calendar, their colours, periods and summaries are unchanged; their arithmetic is now unit-tested.
+  - Nothing in the published files changes.
+- **`xfina-data site build` is now `xfina-data site data`**: it writes `site-data.json`, the input the site's pages are built from, instead of the pages themselves.
+
+### Changed
+
 - **The site uses xfina-ui** ([v0.2.0](https://github.com/xfina-dev/xfina-ui/releases/tag/v0.2.0)), the look shared with xfina.dev and labs.xfina.dev. Changes a reader will see:
   - The header switches between the sites: Xfina, Labs, Xfingine (its GitHub repository) and Data.
   - The light/dark choice made on any xfina.dev site carries over to this one.

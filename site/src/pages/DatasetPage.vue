@@ -2,9 +2,9 @@
 // One dataset: its title, the CSV's address and download, its facts, the
 // explorer, and where the data comes from. Everything but the explorer's
 // drawing is in the static HTML.
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useHead } from "@unhead/vue";
-import { Button, Card, CardContent, CardHeader } from "xfina-ui";
+import { Button, Card, CardContent, CardHeader, CopyField } from "xfina-ui";
 import DatasetFacts from "../components/DatasetFacts.vue";
 import DatasetExplorer from "../components/DatasetExplorer.vue";
 import NotFoundPage from "./NotFoundPage.vue";
@@ -22,16 +22,6 @@ useHead(() =>
     : {},
 );
 
-const copied = ref("Copy URL");
-async function copy() {
-  try {
-    await navigator.clipboard.writeText(csvUrl(dataset.value));
-    copied.value = "Copied";
-  } catch {
-    copied.value = "Copy failed";
-  }
-  setTimeout(() => (copied.value = "Copy URL"), 1500);
-}
 </script>
 
 <template>
@@ -46,8 +36,7 @@ async function copy() {
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h1 class="text-2xl font-semibold leading-tight tracking-tight">{{ dataset.title }}</h1>
           <div class="flex flex-wrap items-center gap-2">
-            <a :href="`/${dataset.published.path}`" class="font-mono text-xs text-muted-foreground hover:text-foreground">{{ csvUrl(dataset) }}</a>
-            <Button size="sm" variant="outline" @click="copy">{{ copied }}</Button>
+            <CopyField :value="csvUrl(dataset)" :href="`/${dataset.published.path}`" label="URL" />
             <Button as="a" :href="`/${dataset.published.path}`" download size="sm">Download CSV</Button>
           </div>
         </div>

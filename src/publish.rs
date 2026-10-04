@@ -1,8 +1,6 @@
 //! What `data.xfina.dev` serves beyond the CSVs themselves: `metadata.json`,
-//! the landing page, and the headers that let browsers on other origins read
-//! any of it.
+//! and `site-data.json`, from which the Vue app in `site/` renders the pages.
 
-use std::collections::HashMap;
 use std::fs::{self, File};
 use std::path::Path;
 
@@ -150,20 +148,91 @@ pub fn write_metadata(catalog: &Catalog, data: &DataDir, now: DateTime<Utc>) -> 
     Ok(())
 }
 
-/// Build the deployable site: the data directory, an index of cards, one
-/// preview page per published dataset, the assets and the headers.
-pub fn build_site(catalog: &Catalog, data: &DataDir, site: &Path, out: &Path) -> Result<()> {
-    if out.exists() {
-        fs::remove_dir_all(out)?;
-    }
-    copy_tree(&data.root().join("v1"), &out.join("v1"))?;
-    copy_tree(&site.join("assets"), &out.join("assets"))?;
-    // xfina-ui: the colours, header and footer every xfina.dev site shares,
-    // copied in from a tagged release rather than loaded from another origin.
-    copy_tree(&site.join("vendor"), &out.join("vendor"))?;
-    fs::copy(site.join("_headers"), out.join("_headers"))?;
-    fs::copy(site.join("404.html"), out.join("404.html"))?;
+/// `site-data.json`: everything the site needs to render its pages, read by
+/// the Vue app in `site/` when it builds. Every public dataset with a preview
+/// is listed under its group, in catalog order, published or not; a published
+/// one carries the facts from `metadata.json`.
+///
+/// Not served, and not part of the `/v1/` contract: it is a build input. The
+/// pages it produces are static HTML, so search engines and link previews see
+/// each dataset's title, summary and facts without running any script.
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SiteData {
+    /// Groups in the order the catalog first names them.
+    pub groups: Vec<SiteGroup>,
+}
 
+/// A heading on the index, with its datasets in catalog order.
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SiteGroup {
+    /// The heading, e.g. `USD/INR Rates`.
+    pub name: String,
+    /// Its datasets, in catalog order.
+    pub datasets: Vec<SiteDataset>,
+}
+
+/// One dataset as the site shows it.
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SiteDataset {
+    /// Dataset id, matching the catalog and the page's path.
+    pub id: String,
+    /// One-line description, the page's title.
+    pub title: String,
+    /// The short name the header's picker shows.
+    pub name: String,
+    /// One or two sentences on what the series is.
+    pub summary: String,
+    /// What a value is measured in; labels the y-axis.
+    pub unit: String,
+    /// How often the source publishes.
+    pub frequency: Frequency,
+    /// Which value columns to draw, with the names a reader sees.
+    pub lines: Vec<crate::catalog::Line>,
+    /// Views computed in the browser beside the published values.
+    pub views: Vec<crate::catalog::View>,
+    /// Absent until the dataset is published: the index then says so, and
+    /// it gets no page.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub published: Option<SitePublished>,
+}
+
+/// What `metadata.json` says about a published dataset, for its card and page.
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SitePublished {
+    /// Path of the CSV below the site root.
+    pub path: String,
+    /// The CSV header.
+    pub columns: Vec<String>,
+    /// First period.
+    pub first: String,
+    /// Last period.
+    pub last: String,
+    /// Data rows in the CSV, header excluded.
+    pub rows: usize,
+    /// The day the CSV's content last changed, `YYYY-MM-DD`.
+    pub updated: String,
+    /// The terms the data comes under.
+    pub licence: String,
+    /// Where it comes from.
+    pub source: SiteSource,
+    /// Path of the raw manifest below the site root.
+    pub manifest: String,
+    /// How many raw files the manifest records.
+    pub raw_files: usize,
+}
+
+/// Where a dataset comes from, in words and as a link.
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SiteSource {
+    /// The source, named for a reader.
+    pub text: String,
+    /// The source's own page.
+    pub url: String,
+}
+
+/// Build `site-data.json` from the catalog and the data directory's
+/// `metadata.json`. Without a `metadata.json`, every dataset is unpublished.
+pub fn site_data(catalog: &Catalog, data: &DataDir) -> Result<SiteData> {
     let metadata: Option<Metadata> = match File::open(data.metadata()) {
         Ok(file) => Some(
             serde_json::from_reader(file)
@@ -171,220 +240,69 @@ pub fn build_site(catalog: &Catalog, data: &DataDir, site: &Path, out: &Path) ->
         ),
         Err(_) => None,
     };
-    let template = fs::read_to_string(site.join("dataset.html"))?;
-    // One header for every page, so the pages cannot drift apart. Only the
-    // picker's selection differs from page to page.
-    let header = fs::read_to_string(site.join("header.html"))?;
-    let datasets = picker_groups(catalog, metadata.as_ref());
 
-    let mut cards: HashMap<&str, String> = HashMap::new();
-    for entry in metadata.iter().flat_map(|m| &m.datasets) {
-        let Some(dataset) = catalog.dataset(&entry.id) else {
-            continue;
-        };
-        let Some(preview) = &dataset.preview else {
-            continue;
-        };
-        let page = format!("datasets/{}/", entry.id);
-
-        cards.insert(
-            &dataset.id,
-            format!(
-                "<article class=\"card\"><div class=\"card-header\">\
-                 <h3 class=\"card-title\">{title}</h3>\
-                 <p class=\"card-description\">{summary}</p></div>\
-                 <div class=\"card-content\"><div class=\"facts\">{facts}</div>\
-                 <div class=\"actions\"><a class=\"btn btn-sm\" href=\"/{page}\">Preview</a>\
-                 <a class=\"btn btn-outline btn-sm\" href=\"/{path}\" download>Download CSV</a>\
-                 </div></div></article>\n",
-                title = escape(&dataset.title),
-                summary = escape(&preview.summary),
-                facts = facts(entry),
-                path = escape(&entry.path),
-            ),
-        );
-
-        let config = serde_json::json!({
-            "path": entry.path,
-            "frequency": dataset.frequency,
-            "unit": preview.unit,
-            "lines": preview.lines,
-            "views": preview.views,
-        });
-        // Embedded in a <script> element, where `</` would end it early.
-        let config = config.to_string().replace("</", "<\\/");
-        let (source_text, source_url) = describe(&dataset.source);
-        // The dataset's own <h1> is the page's heading, so the header's title
-        // is not one.
-        let page_header = header
-            .replace("{{HEADING}}", "")
-            .replace("<!-- PICKER -->", &picker(&datasets, Some(&dataset.id)));
-        let html = template
-            .replace("<!-- HEADER -->", &page_header)
-            .replace("{{ID}}", &escape(&dataset.id))
-            .replace("{{TITLE}}", &escape(&dataset.title))
-            .replace("{{SUMMARY}}", &escape(&preview.summary))
-            .replace("{{FACTS}}", &facts(entry))
-            .replace("{{CSV_PATH}}", &escape(&entry.path))
-            .replace("{{COLUMNS}}", &escape(&entry.columns.join(",")))
-            .replace(
-                "{{SOURCE}}",
-                &format!(
-                    "<a href=\"{}\">{}</a>",
-                    escape(source_url),
-                    escape(&source_text)
-                ),
-            )
-            .replace("{{LICENCE}}", &escape(&entry.licence))
-            .replace("{{MANIFEST_PATH}}", &escape(&entry.manifest))
-            .replace("{{RAW_FILES}}", &entry.raw_files.to_string())
-            .replace("{{CONFIG_JSON}}", &config);
-        let dir = out.join(&page);
-        fs::create_dir_all(&dir)?;
-        fs::write(dir.join("index.html"), html)?;
-    }
-    // The index lists every public dataset under its group, published or
-    // not. One still being brought up says so, so a reader can see what is
-    // coming without mistaking it for something they can use today.
-    let mut groups: Vec<(&str, String)> = Vec::new();
+    let mut groups: Vec<SiteGroup> = Vec::new();
     for dataset in catalog.datasets.iter().filter(|d| d.public) {
         let Some(preview) = &dataset.preview else {
             continue;
         };
-        let card = match cards.remove(dataset.id.as_str()) {
-            Some(card) => card,
-            None => format!(
-                "<article class=\"card\"><div class=\"card-header\">\
-                 <h3 class=\"card-title\">{title}</h3>\
-                 <p class=\"card-description\">{summary}</p></div>\
-                 <div class=\"card-content\"><div class=\"facts\"><span><b>{frequency}</b></span>\
-                 <span class=\"badge\">Not published yet</span></div></div></article>\n",
-                title = escape(&dataset.title),
-                summary = escape(&preview.summary),
-                frequency = frequency_name(dataset.frequency),
-            ),
-        };
-        match groups.iter_mut().find(|(name, _)| *name == preview.group) {
-            Some((_, html)) => html.push_str(&card),
-            None => groups.push((&preview.group, card)),
-        }
-    }
-    let mut sections = String::new();
-    for (name, html) in &groups {
-        sections.push_str(&format!(
-            "<section class=\"group\"><h2 class=\"group-title\">{}</h2>\
-             <div class=\"cards\">\n{html}</div></section>\n",
-            escape(name)
-        ));
-    }
-    if sections.is_empty() {
-        sections.push_str("<p class=\"muted\">Nothing is published yet.</p>\n");
-    }
-
-    // Listed in the same order as the groups above them.
-    let mut endpoints = Vec::new();
-    for (name, _) in &groups {
-        for dataset in catalog
-            .datasets
+        let published = metadata
             .iter()
-            .filter(|d| d.preview.as_ref().is_some_and(|p| p.group == *name))
-        {
-            if let Some(entry) = metadata
-                .iter()
-                .flat_map(|m| &m.datasets)
-                .find(|e| e.id == dataset.id)
-            {
-                endpoints.push(format!("https://data.xfina.dev/{}", escape(&entry.path)));
-            }
+            .flat_map(|m| &m.datasets)
+            .find(|e| e.id == dataset.id)
+            .map(|entry| {
+                let (text, url) = describe(&entry.source);
+                SitePublished {
+                    path: entry.path.clone(),
+                    columns: entry.columns.clone(),
+                    first: entry.first.clone(),
+                    last: entry.last.clone(),
+                    rows: entry.rows,
+                    updated: entry.updated_at.format("%Y-%m-%d").to_string(),
+                    licence: entry.licence.clone(),
+                    source: SiteSource {
+                        text,
+                        url: url.to_string(),
+                    },
+                    manifest: entry.manifest.clone(),
+                    raw_files: entry.raw_files,
+                }
+            });
+        let item = SiteDataset {
+            id: dataset.id.clone(),
+            title: dataset.title.clone(),
+            name: preview.name.clone().unwrap_or_else(|| dataset.id.clone()),
+            summary: preview.summary.clone(),
+            unit: preview.unit.clone(),
+            frequency: dataset.frequency,
+            lines: preview.lines.clone(),
+            views: preview.views.clone(),
+            published,
+        };
+        match groups.iter_mut().find(|g| g.name == preview.group) {
+            Some(group) => group.datasets.push(item),
+            None => groups.push(SiteGroup {
+                name: preview.group.clone(),
+                datasets: vec![item],
+            }),
         }
     }
-    let endpoints = endpoints.join("\n");
+    Ok(SiteData { groups })
+}
 
-    // The index has no heading of its own: "Xfina Data" is it.
-    let index_header = header
-        .replace("{{HEADING}}", " heading")
-        .replace("<!-- PICKER -->", &picker(&datasets, None));
-    let page = fs::read_to_string(site.join("index.html"))?
-        .replace("<!-- HEADER -->", &index_header)
-        .replace("<!-- GROUPS -->", &sections)
-        .replace("<!-- ENDPOINTS -->", &endpoints);
-    fs::write(out.join("index.html"), page)?;
+/// Write `site-data.json` for the site's build.
+pub fn write_site_data(catalog: &Catalog, data: &DataDir, out: &Path) -> Result<()> {
+    let site = site_data(catalog, data)?;
+    let mut json = serde_json::to_string_pretty(&site)
+        .map_err(|e| XfinaDataError::Store(format!("{}: {e}", out.display())))?;
+    json.push('\n');
+    if let Some(parent) = out.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(out, json)?;
     Ok(())
 }
 
-/// Published datasets for the header's picker: (group, [(id, name)]), groups
-/// and datasets in catalog order, as the index lists them. Only datasets with
-/// a page are offered, so no option leads to a 404.
-fn picker_groups<'a>(
-    catalog: &'a Catalog,
-    metadata: Option<&Metadata>,
-) -> Vec<(&'a str, Vec<(&'a str, &'a str)>)> {
-    let mut groups: Vec<(&str, Vec<(&str, &str)>)> = Vec::new();
-    for dataset in catalog.datasets.iter().filter(|d| d.public) {
-        let Some(preview) = &dataset.preview else {
-            continue;
-        };
-        if !metadata.is_some_and(|m| m.datasets.iter().any(|e| e.id == dataset.id)) {
-            continue;
-        }
-        let item = (
-            dataset.id.as_str(),
-            preview.name.as_deref().unwrap_or(&dataset.id),
-        );
-        match groups.iter_mut().find(|(name, _)| *name == preview.group) {
-            Some((_, items)) => items.push(item),
-            None => groups.push((&preview.group, vec![item])),
-        }
-    }
-    groups
-}
-
-/// The header's dataset picker, with `current` selected: "All datasets" (the
-/// index) when it is None. Each option's value is the page it opens, which
-/// assets/site.js follows.
-fn picker(groups: &[(&str, Vec<(&str, &str)>)], current: Option<&str>) -> String {
-    let selected = current.map_or("/".to_string(), |id| format!("/datasets/{id}/"));
-    let mut html = format!(
-        "    <xfina-select slot=\"context\" label=\"Dataset\" data-navigate value=\"{}\">\n\
-         \x20     <option value=\"/\">All datasets</option>\n",
-        escape(&selected)
-    );
-    for (group, items) in groups {
-        html.push_str(&format!("      <optgroup label=\"{}\">\n", escape(group)));
-        for (id, name) in items {
-            html.push_str(&format!(
-                "        <option value=\"/datasets/{}/\">{}</option>\n",
-                escape(id),
-                escape(name)
-            ));
-        }
-        html.push_str("      </optgroup>\n");
-    }
-    html.push_str("    </xfina-select>");
-    html
-}
-
-/// The one-line facts under a dataset's title.
-fn facts(entry: &Entry) -> String {
-    let frequency = frequency_name(entry.frequency);
-    format!(
-        "<span><b>{frequency}</b></span><span><b>{}</b> → <b>{}</b></span>\
-         <span><b>{}</b> rows</span><span>updated {}</span>",
-        escape(&entry.first),
-        escape(&entry.last),
-        entry.rows,
-        entry.updated_at.format("%Y-%m-%d"),
-    )
-}
-
-fn frequency_name(frequency: Frequency) -> &'static str {
-    match frequency {
-        Frequency::Daily => "Daily",
-        Frequency::Monthly => "Monthly",
-    }
-}
-
-/// Where a dataset comes from, in words a reader would use, and a link.
 fn describe(source: &Source) -> (String, &str) {
     match source {
         Source::SbiForexCard { urls, currency } => (
@@ -421,23 +339,6 @@ fn describe(source: &Source) -> (String, &str) {
     }
 }
 
-fn copy_tree(from: &Path, to: &Path) -> Result<()> {
-    if !from.exists() {
-        return Ok(());
-    }
-    fs::create_dir_all(to)?;
-    for entry in fs::read_dir(from)? {
-        let entry = entry?;
-        let target = to.join(entry.file_name());
-        if entry.path().is_dir() {
-            copy_tree(&entry.path(), &target)?;
-        } else if !entry.file_name().to_string_lossy().ends_with(".tmp") {
-            fs::copy(entry.path(), target)?;
-        }
-    }
-    Ok(())
-}
-
 fn relative(root: &Path, path: &Path) -> String {
     path.strip_prefix(root)
         .unwrap_or(path)
@@ -445,11 +346,4 @@ fn relative(root: &Path, path: &Path) -> String {
         .map(|c| c.as_os_str().to_string_lossy())
         .collect::<Vec<_>>()
         .join("/")
-}
-
-fn escape(text: &str) -> String {
-    text.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
 }

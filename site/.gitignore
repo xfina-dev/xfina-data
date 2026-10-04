@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.vite-ssg-temp/
+# Written by `xfina-data site data`; the recorded copy is fixtures/site-data.json.
+src/site-data.json

@@ -1,165 +1,141 @@
-//! The built site: what `data.xfina.dev` serves, from a data directory.
+//! The site's build input: `site-data.json`, from the catalog and a data
+//! directory's `metadata.json`.
+//!
+//! `site/fixtures/` holds a recorded copy, made from the fixtures here and
+//! re-recorded with `UPDATE_EXPECTED=1 cargo test`. It is also what the Vue
+//! site in `site/` builds from in CI, so a change to this file's shape fails
+//! here first, and the site is built against exactly what this tool writes.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use chrono::{TimeZone, Utc};
 use xfina_data::catalog::Catalog;
 use xfina_data::pipeline::DataDir;
-use xfina_data::publish;
+use xfina_data::publish::{self, SiteData};
 
-#[test]
-fn builds_an_index_and_a_preview_page_per_published_dataset() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let catalog = Catalog::load_validated(&root.join("datasets.yaml")).unwrap();
+fn root() -> &'static Path {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+}
 
-    let scratch = std::env::temp_dir().join(format!("xfina-data-site-{}", std::process::id()));
+/// Two published series, one monthly and one daily, standing in for the
+/// live data: MoSPI CPI and the BIS rate, from their parser fixtures. SBI and
+/// IMF stay unpublished, so the index's "not published yet" path is covered.
+const PUBLISHED: [(&str, &str); 2] = [
+    ("in-cpi", "tests/data/mospi/expected.csv"),
+    ("bis-usd-inr", "tests/data/sdmx/bis.expected.csv"),
+];
+
+/// A parser fixture's rows under the published header. The SDMX fixtures
+/// name their value column `value`; the published BIS file calls it
+/// `inr_per_usd`, and the site reads it by that name.
+fn published_csv(columns: &[String], fixture: &str) -> String {
+    let text = fs::read_to_string(root().join(fixture)).unwrap();
+    let (_, rows) = text.split_once('\n').unwrap();
+    format!("{}\n{rows}", columns.join(","))
+}
+
+fn published_data(name: &str) -> (Catalog, DataDir) {
+    let catalog = Catalog::load_validated(&root().join("datasets.yaml")).unwrap();
+    let scratch: PathBuf =
+        std::env::temp_dir().join(format!("xfina-data-site-{name}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&scratch);
     let data = DataDir::new(scratch.join("data"));
-    let out = scratch.join("dist");
-
-    // The CPI fixture's expected output stands in for a published series.
-    let csv = data.root().join("v1/inflation/in-cpi.csv");
-    fs::create_dir_all(csv.parent().unwrap()).unwrap();
-    fs::copy(root.join("tests/data/mospi/expected.csv"), &csv).unwrap();
+    for (id, fixture) in PUBLISHED {
+        let dataset = catalog.dataset(id).unwrap();
+        let csv = data.series(dataset);
+        fs::create_dir_all(csv.parent().unwrap()).unwrap();
+        fs::write(&csv, published_csv(&dataset.output.columns, fixture)).unwrap();
+    }
     let now = Utc.with_ymd_and_hms(2026, 10, 2, 10, 30, 0).unwrap();
     publish::write_metadata(&catalog, &data, now).unwrap();
+    (catalog, data)
+}
 
-    publish::build_site(&catalog, &data, &root.join("site"), &out).unwrap();
-
-    let index = fs::read_to_string(out.join("index.html")).unwrap();
-    assert!(
-        index.contains(r#"href="/datasets/in-cpi/""#),
-        "index links the preview"
-    );
-    for placeholder in ["<!-- HEADER -->", "<!-- GROUPS -->", "<!-- ENDPOINTS -->"] {
-        assert!(!index.contains(placeholder), "{placeholder} is filled");
+#[test]
+fn site_data_matches_its_recorded_fixture() {
+    let (catalog, data) = published_data("snapshot");
+    let expected = root().join("site/fixtures/site-data.json");
+    if std::env::var_os("UPDATE_EXPECTED").is_some() {
+        publish::write_site_data(&catalog, &data, &expected).unwrap();
+        for (id, _) in PUBLISHED {
+            let dataset = catalog.dataset(id).unwrap();
+            let copy = root().join("site/fixtures/data").join(&dataset.output.path);
+            fs::create_dir_all(copy.parent().unwrap()).unwrap();
+            fs::copy(data.series(dataset), copy).unwrap();
+        }
     }
-    // xfina-ui's header, with its title as the index's heading, and the
-    // dataset picker on "All datasets". Only published datasets are offered,
-    // under their index group, by their short name.
-    assert!(
-        index.contains(r#"<xfina-header site="data" home="/" heading>"#),
-        "the shared header is on the index, as its heading"
-    );
-    assert!(
-        index.contains(r#"<xfina-select slot="context" label="Dataset" data-navigate value="/">"#)
-    );
-    assert!(index.contains(r#"<optgroup label="Inflation">"#));
-    assert!(index.contains(r#"<option value="/datasets/in-cpi/">MoSPI CPI</option>"#));
-    assert!(
-        !index.contains(r#"<option value="/datasets/sbi-forex-card-usd/">"#),
-        "no option leads to a page that does not exist"
-    );
-    assert!(index.contains(r#"<xfina-footer site="data">"#));
-    // Grouped in the catalog's order. SBI is planned, so it is listed under
-    // its group and marked, not linked.
-    let rates = index.find(">USD/INR Rates<").expect("rates group");
-    let inflation = index.find(">Inflation<").expect("inflation group");
-    assert!(rates < inflation, "groups follow the catalog");
-    assert!(
-        index.contains("Not published yet"),
-        "a planned dataset says so"
-    );
-    assert!(
-        !index.contains(r#"href="/datasets/sbi-forex-card-usd/""#),
-        "a planned dataset has no preview link"
-    );
-    assert!(
-        index.contains("https://data.xfina.dev/v1/inflation/in-cpi.csv"),
-        "published endpoints are listed"
-    );
-    assert!(
-        !index.contains("https://data.xfina.dev/v1/fx/sbi-forex-card-usd.csv"),
-        "a planned dataset has no endpoint"
-    );
-
-    let page = fs::read_to_string(out.join("datasets/in-cpi/index.html")).unwrap();
-    assert!(!page.contains("{{"), "every placeholder is filled");
-    assert!(
-        !page.contains("<!-- HEADER -->"),
-        "the shared header is on every page"
-    );
-    assert!(
-        page.contains(r#"<xfina-header site="data" home="/">"#),
-        "the dataset's own title is the heading, not the header's"
-    );
-    assert!(
-        page.contains(r#"data-navigate value="/datasets/in-cpi/">"#),
-        "the picker names this dataset"
-    );
-    assert!(page.contains(r#""path":"v1/inflation/in-cpi.csv""#));
-    assert!(page.contains(r#""views":["year-on-year"]"#));
-    assert!(
-        page.contains("integrity=\"sha512-"),
-        "the chart library is pinned by hash"
-    );
-    // Chart and calendar share one panel of controls and one period slider,
-    // and the CSV's URL sits beside its download in the title row.
-    for id in [
-        "id=\"views\"",
-        "id=\"modes\"",
-        "id=\"ranges\"",
-        "id=\"stats\"",
-        "id=\"navigator\"",
-        "id=\"copy-url\"",
-        "id=\"from\"",
-        "id=\"to\"",
-    ] {
-        assert!(page.contains(id), "the page has {id}");
-    }
-    assert!(
-        page.contains("https://data.xfina.dev/v1/inflation/in-cpi.csv"),
-        "the CSV's URL is shown"
-    );
-
-    // SBI is still planned, so it gets no page.
-    assert!(!out.join("datasets/sbi-forex-card-usd").exists());
-    for asset in [
-        "assets/site.css",
-        "assets/preview.js",
-        "assets/site.js",
-        "vendor/xfina-ui/xfina-ui.css",
-        "vendor/xfina-ui/xfina-ui.js",
-        "vendor/xfina-ui/xfina-theme.js",
-        "vendor/xfina-ui/logo.svg",
-        "_headers",
-        "404.html",
-        "v1/metadata.json",
-    ] {
-        assert!(out.join(asset).exists(), "{asset} is deployed");
-    }
-
-    let metadata: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(out.join("v1/metadata.json")).unwrap()).unwrap();
-    assert_eq!(metadata["datasets"][0]["rows"], 24);
+    let written = data.root().join("site-data.json");
+    publish::write_site_data(&catalog, &data, &written).unwrap();
     assert_eq!(
-        metadata["datasets"][0]["updated_at"],
-        "2026-10-02T10:30:00Z"
+        fs::read_to_string(&written).unwrap(),
+        fs::read_to_string(&expected).unwrap(),
+        "site-data.json moved; re-record with UPDATE_EXPECTED=1 once the change is understood, \
+         and check the site still builds from it"
     );
 }
 
-/// The vendored xfina-ui must be a release, byte for byte: a hand-edited copy
-/// would make this site drift from the others while claiming a version.
 #[test]
-fn the_vendored_xfina_ui_matches_its_release_checksums() {
-    use sha2::{Digest, Sha256};
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("site/vendor/xfina-ui");
-    let sums = fs::read_to_string(dir.join("SHA256SUMS")).unwrap();
-    let mut checked = 0;
-    for line in sums.lines() {
-        let (expected, name) = line.split_once("  ").expect("sha256, two spaces, name");
-        let bytes = fs::read(dir.join(name)).unwrap_or_else(|e| panic!("{name}: {e}"));
-        let actual = hex::encode(Sha256::digest(&bytes));
-        assert_eq!(actual, expected, "{name} differs from its release");
-        checked += 1;
+fn groups_follow_the_catalog_and_only_published_datasets_carry_facts() {
+    let (catalog, data) = published_data("groups");
+    let site: SiteData = publish::site_data(&catalog, &data).unwrap();
+
+    let groups: Vec<&str> = site.groups.iter().map(|g| g.name.as_str()).collect();
+    assert_eq!(groups, ["USD/INR Rates", "Inflation"]);
+
+    for group in &site.groups {
+        for dataset in &group.datasets {
+            let published = PUBLISHED.iter().any(|(id, _)| *id == dataset.id);
+            assert_eq!(dataset.published.is_some(), published, "{}", dataset.id);
+            assert!(
+                !dataset.name.is_empty() && dataset.name.len() <= 24,
+                "{} has a short name",
+                dataset.id
+            );
+        }
     }
-    assert!(checked >= 4, "every shipped file is listed");
-    // Every page loads these, so every one must be listed.
-    for name in ["xfina-ui.css", "xfina-ui.js", "xfina-theme.js", "logo.svg"] {
-        assert!(
-            sums.contains(&format!("  {name}\n")),
-            "{name} is in SHA256SUMS"
+
+    let cpi = site.groups[1]
+        .datasets
+        .iter()
+        .find(|d| d.id == "in-cpi")
+        .unwrap();
+    let facts = cpi.published.as_ref().unwrap();
+    assert_eq!(facts.path, "v1/inflation/in-cpi.csv");
+    assert_eq!(facts.updated, "2026-10-02");
+    assert!(facts.source.url.starts_with("https://"));
+}
+
+#[test]
+fn without_metadata_nothing_is_published() {
+    let catalog = Catalog::load_validated(&root().join("datasets.yaml")).unwrap();
+    let empty = DataDir::new(std::env::temp_dir().join("xfina-data-site-empty-does-not-exist"));
+    let site = publish::site_data(&catalog, &empty).unwrap();
+    assert!(site
+        .groups
+        .iter()
+        .flat_map(|g| &g.datasets)
+        .all(|d| d.published.is_none()));
+}
+
+/// The site's fixture CSVs, which its dev server and explorer tests read,
+/// must be exactly what this tool publishes from the fixtures above.
+#[test]
+fn the_sites_fixture_csvs_are_what_would_be_published() {
+    // While re-recording, the snapshot test is writing these files in
+    // parallel; the run after it checks them.
+    if std::env::var_os("UPDATE_EXPECTED").is_some() {
+        return;
+    }
+    let (catalog, data) = published_data("csvs");
+    for (id, _) in PUBLISHED {
+        let dataset = catalog.dataset(id).unwrap();
+        let copy = root().join("site/fixtures/data").join(&dataset.output.path);
+        assert_eq!(
+            fs::read(&copy).unwrap_or_else(|e| panic!("{}: {e}", copy.display())),
+            fs::read(data.series(dataset)).unwrap(),
+            "{} is stale; re-record with UPDATE_EXPECTED=1",
+            copy.display()
         );
     }
 }

@@ -69,8 +69,20 @@ jobs:
           git commit -q -m "data: sync $(date -u +%Y-%m-%dT%H:%MZ)" -m "Produced by xfina-data@${CODE_SHA}."
           git push origin HEAD:data
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      # The tool writes what the pages are built from; the Vue app in site/
+      # renders them to static HTML and copies the data in beside them.
       - name: Build site
-        run: ./target/release/xfina-data site build --data data --out dist
+        run: |
+          ./target/release/xfina-data site data --data data --out site/src/site-data.json
+          cd site
+          npm ci
+          DATA_DIR=../data npm run build
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v4

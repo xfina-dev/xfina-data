@@ -59,7 +59,8 @@ The tool is not a local utility. **It runs in GitHub Actions**, and what it does
 - run: cargo build --release --locked                 # the tool, from this commit
 - run: xfina-data sync --data data                       # fetch, archive to R2, rebuild
 - run: git -C data commit && git -C data push         # "Produced by xfina-data@<sha>"
-- run: xfina-data site build --data data --out dist      # page, headers, CSVs
+- run: xfina-data site data --data data --out site/src/site-data.json
+- run: cd site && npm ci && DATA_DIR=../data npm run build   # static pages + CSVs
 - uses: cloudflare/wrangler-action@v4                 # deploy data.xfina.dev
 ```
 
@@ -81,7 +82,7 @@ xfina-data raw put         --dataset id --name <key> --source-url <url> [--origi
 xfina-data raw import      --dataset id --from <dir> --source-url-base <url> --origin upstream
 xfina-data reconcile       --dataset id
 xfina-data config validate [--base <file>]
-xfina-data site build      [--site site] [--out dist]
+xfina-data site data       [--out site/src/site-data.json]
 ```
 
 Every command takes `--config` (default `datasets.yaml`) and `--data` (default `data`); `--local-archive <dir>` swaps R2 for a local directory, for working without credentials.
@@ -93,6 +94,20 @@ cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
+
+### The site
+
+`site/` is a Vue app on [xfina-ui](https://github.com/xfina-dev/xfina-ui), the theme and components every xfina.dev site shares, rendered to static HTML by vite-ssg: the index, one page per published dataset, and the 404. Every page is plain HTML with its dataset's title, summary and facts, so search engines and link previews need no script; Vue then draws the chart and calendar in the browser.
+
+```bash
+cd site
+npm ci
+npm test                                          # the explorer's arithmetic
+SITE_DATA=fixtures/site-data.json npm run build   # the pages, as CI builds them
+npm run dev                                       # http://localhost:4311, on the fixture data
+```
+
+`fixtures/` is recorded by `cargo test` (re-record with `UPDATE_EXPECTED=1`): the `site-data.json` and CSVs the tool would publish from the test fixtures. To work on the live data instead, write `src/site-data.json` with `xfina-data site data --data <data branch>` and run with `DATA_DIR=<data branch>`.
 
 All three are gates in `Check PR`, which carries the correctness burden precisely because nobody runs the tool by hand before it ships. `cargo xtask` holds the release and maintenance tasks.
 

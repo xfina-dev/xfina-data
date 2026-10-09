@@ -1,2 +1,3 @@
 key,sha256,bytes,content_type,fetched_at,origin,source_url
 bis/ws-cbpol/2026/2026-10-09/ws_cbpol-M.IN.csv,0c8f93a8b06dd07384c24d4a26568a9ebb6cb08e7b92014cb289e7aa364d8515,346844,text/csv,2026-10-09T01:51:50Z,auto,https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/M.IN?format=csv&startPeriod=1946-01
+bis/ws-cbpol/2026/2026-10-09/ws_cbpol-M.IN-e29e1334.csv,e29e1334837d75437d0bc6bcc25a87dae5574db8db4792627292acd596137929,882,text/csv,2026-10-09T17:08:05Z,auto,https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/M.IN?format=csv&startPeriod=2026-04-12

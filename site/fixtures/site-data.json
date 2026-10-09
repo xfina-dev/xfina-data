@@ -20,7 +20,8 @@
               "label": "TT sell"
             }
           ],
-          "views": []
+          "views": [],
+          "change": "relative"
         },
         {
           "id": "bis-usd-inr",
@@ -36,6 +37,7 @@
             }
           ],
           "views": [],
+          "change": "relative",
           "published": {
             "path": "v1/fx/bis-usd-inr.csv",
             "columns": [
@@ -76,6 +78,7 @@
           "views": [
             "year-on-year"
           ],
+          "change": "relative",
           "published": {
             "path": "v1/inflation/in-cpi.csv",
             "columns": [
@@ -110,7 +113,63 @@
           ],
           "views": [
             "year-on-year"
-          ]
+          ],
+          "change": "relative"
+        }
+      ]
+    },
+    {
+      "name": "Interest rates",
+      "datasets": [
+        {
+          "id": "bis-policy-rate-in",
+          "title": "India central bank policy rate, monthly since 1946, from the BIS",
+          "name": "BIS India policy rate",
+          "summary": "The Reserve Bank of India's policy rate at the end of each month, as the BIS publishes it: the repo rate from 3 April 2001, and the bank rate before, since the RBI had no single policy rate until then. A rate the central bank sets, not a return anyone earns; market short rates trade near it.",
+          "unit": "Percent a year",
+          "frequency": "monthly",
+          "lines": [
+            {
+              "column": "rate",
+              "label": "Policy rate"
+            }
+          ],
+          "views": [],
+          "change": "points",
+          "published": {
+            "path": "v1/rates/bis-policy-rate-in.csv",
+            "columns": [
+              "month",
+              "rate"
+            ],
+            "first": "2000-12",
+            "last": "2001-06",
+            "rows": 7,
+            "updated": "2026-10-02",
+            "licence": "Source: BIS (data.bis.org). BIS statistics may be reproduced freely with this attribution and at no additional charge, under the BIS terms of permitted use: https://data.bis.org/help/legal",
+            "source": {
+              "text": "BIS Data Portal, WS_CBPOL series M.IN",
+              "url": "https://data.bis.org/topics/XRU"
+            },
+            "manifest": "v1/manifests/bis-policy-rate-in.csv",
+            "raw_files": 0
+          }
+        },
+        {
+          "id": "bis-policy-rate-us",
+          "title": "US central bank policy rate, monthly since 1954, from the BIS",
+          "name": "BIS US policy rate",
+          "summary": "The Federal Reserve's policy rate at the end of each month, as the BIS publishes it: the Fed funds target from 19 December 1985, taking the midpoint once the target became a range in December 2008, and the effective Fed funds rate before. A rate the central bank sets, not a return anyone earns; market short rates trade near it.",
+          "unit": "Percent a year",
+          "frequency": "monthly",
+          "lines": [
+            {
+              "column": "rate",
+              "label": "Policy rate"
+            }
+          ],
+          "views": [],
+          "change": "points"
         }
       ]
     }

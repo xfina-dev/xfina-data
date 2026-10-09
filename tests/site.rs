@@ -10,7 +10,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use chrono::{TimeZone, Utc};
-use xfina_data::catalog::Catalog;
+use xfina_data::catalog::{Catalog, ChangeKind};
 use xfina_data::pipeline::DataDir;
 use xfina_data::publish::{self, SiteData};
 
@@ -18,17 +18,22 @@ fn root() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR"))
 }
 
-/// Two published series, one monthly and one daily, standing in for the
-/// live data: MoSPI CPI and the BIS rate, from their parser fixtures. SBI and
-/// IMF stay unpublished, so the index's "not published yet" path is covered.
-const PUBLISHED: [(&str, &str); 2] = [
+/// Three published series standing in for the live data, from their parser
+/// fixtures: MoSPI CPI (monthly), the BIS USD/INR rate (daily) and India's
+/// policy rate (monthly, its change in points). The rest stay unpublished, so
+/// the index's "not published yet" path is covered.
+const PUBLISHED: [(&str, &str); 3] = [
     ("in-cpi", "tests/data/mospi/expected.csv"),
     ("bis-usd-inr", "tests/data/sdmx/bis.expected.csv"),
+    (
+        "bis-policy-rate-in",
+        "tests/data/sdmx/bis-cbpol.expected.csv",
+    ),
 ];
 
 /// A parser fixture's rows under the published header. The SDMX fixtures
-/// name their value column `value`; the published BIS file calls it
-/// `inr_per_usd`, and the site reads it by that name.
+/// name their value column `value`; the published BIS files call it
+/// `inr_per_usd` or `rate`, and the site reads it by that name.
 fn published_csv(columns: &[String], fixture: &str) -> String {
     let text = fs::read_to_string(root().join(fixture)).unwrap();
     let (_, rows) = text.split_once('\n').unwrap();
@@ -81,7 +86,7 @@ fn groups_follow_the_catalog_and_only_published_datasets_carry_facts() {
     let site: SiteData = publish::site_data(&catalog, &data).unwrap();
 
     let groups: Vec<&str> = site.groups.iter().map(|g| g.name.as_str()).collect();
-    assert_eq!(groups, ["USD/INR Rates", "Inflation"]);
+    assert_eq!(groups, ["USD/INR Rates", "Inflation", "Interest rates"]);
 
     for group in &site.groups {
         for dataset in &group.datasets {
@@ -104,6 +109,18 @@ fn groups_follow_the_catalog_and_only_published_datasets_carry_facts() {
     assert_eq!(facts.path, "v1/inflation/in-cpi.csv");
     assert_eq!(facts.updated, "2026-10-02");
     assert!(facts.source.url.starts_with("https://"));
+
+    // A rate's change is in points, never a percentage of itself; every
+    // other series keeps the relative change and its CAGR.
+    for dataset in site.groups.iter().flat_map(|g| &g.datasets) {
+        let rate = dataset.id.starts_with("bis-policy-rate-");
+        let expected = if rate {
+            ChangeKind::Points
+        } else {
+            ChangeKind::Relative
+        };
+        assert_eq!(dataset.change, expected, "{}", dataset.id);
+    }
 }
 
 #[test]

@@ -4,7 +4,7 @@
 // The two views are twins. They share one set of controls (what to show: the
 // level or its change; which period, chosen by preset, by date, or by
 // dragging the slider under either view) and one summary of that period, CAGR
-// included. Switching view keeps everything else as it was.
+// included for a level (a rate changes in points and has none). Switching view keeps everything else as it was.
 //
 // The controls are in the static HTML, built from the dataset's first and last
 // period in site-data.json. The CSV is fetched, and everything drawn, in the
@@ -80,7 +80,11 @@ const period = computed(() => {
 
 const note = computed(() => {
   const lines = props.dataset.lines;
-  const parts = ["Change and CAGR are computed in your browser from the published values; they are not themselves published."];
+  const parts = [
+    props.dataset.change === "points"
+      ? "Change, in percentage points, is computed in your browser from the published values; it is not itself published."
+      : "Change and CAGR are computed in your browser from the published values; they are not themselves published.",
+  ];
   if (state.view === "calendar") {
     parts.push(
       monthly
@@ -237,7 +241,7 @@ const controlLabel = "mb-1.5 block text-xs font-semibold uppercase tracking-wide
         <span class="font-semibold">{{ s.label }}</span>
         <span><span class="mr-1.5 text-muted-foreground">From</span>{{ s.from }} → {{ s.to }}</span>
         <span><span class="mr-1.5 text-muted-foreground">Change</span>{{ s.change }}</span>
-        <span><span class="mr-1.5 text-muted-foreground">CAGR</span>{{ s.cagr }}</span>
+        <span v-if="s.cagr"><span class="mr-1.5 text-muted-foreground">CAGR</span>{{ s.cagr }}</span>
       </div>
     </div>
 

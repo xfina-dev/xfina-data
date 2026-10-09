@@ -244,6 +244,19 @@ fn sdmx_imf_reads_its_month_format_and_skips_empty_periods() {
     snapshot("sdmx/imf.expected.csv", &csv_of(&derived.series));
 }
 
+#[test]
+fn sdmx_bis_reads_a_monthly_key_as_months() {
+    // WS_CBPOL M.IN across April 2001, where the BIS switches from the bank
+    // rate (7) to the repo rate (8.75): a break in the source, kept as served.
+    let doc = file("bis/ws-cbpol/bis-cbpol.csv", 0);
+    let docs = vec![(&doc, fs::read(data("sdmx/bis-cbpol.csv")).unwrap())];
+    let derived = sdmx::derive(Frequency::Monthly, &one_column("month"), &docs).unwrap();
+    derived.series.check_invariants().unwrap();
+    assert_eq!(derived.series.len(), 7);
+    assert!(derived.notes.is_empty(), "{:?}", derived.notes);
+    snapshot("sdmx/bis-cbpol.expected.csv", &csv_of(&derived.series));
+}
+
 fn sdmx_doc(rows: &[&str]) -> Vec<u8> {
     let mut text = String::from("FREQ,TIME_PERIOD,OBS_VALUE,OBS_STATUS\n");
     for row in rows {

@@ -5,7 +5,7 @@
 // `themechange`.
 
 import { chart as theme } from "xfina-ui";
-import { MONTHS, axisName, cellText, divergingBound, escape, percent, periodRows, stamp } from "./series.js";
+import { MONTHS, axisName, cellText, divergingBound, escape, formatChange, periodRows, stamp } from "./series.js";
 
 const valuesFor = (derived, mode) => (mode === "change" ? derived.change : mode === "yoy" ? derived.yoy : derived.level);
 
@@ -17,7 +17,7 @@ function tooltip(ctx, index) {
   if (state.mode !== "level") {
     const v = valuesFor(derived, state.mode)[0][index];
     const what = state.mode === "yoy" ? "on a year earlier" : index > 0 ? `since ${rows.keyed[index - 1][0]}` : "";
-    parts.push(v == null ? "No earlier value to compare" : `Change ${escape(what)}: <b>${percent(v)}</b>`);
+    parts.push(v == null ? "No earlier value to compare" : `Change ${escape(what)}: <b>${formatChange(v, derived.points)}</b>`);
   }
   return `<div>${escape(row[0])}</div>${parts.join("<br>")}`;
 }
@@ -84,10 +84,10 @@ export function renderChart(plot, ctx) {
         ...t.axis,
         type: "value",
         scale: state.mode === "level",
-        name: axisName(state.mode, unit, monthly),
+        name: axisName(state.mode, unit, monthly, derived.points),
         nameLocation: "end",
         nameTextStyle: { ...t.axis.nameTextStyle, align: "left" },
-        axisLabel: { ...t.axis.axisLabel, formatter: state.mode === "level" ? undefined : "{value}%" },
+        axisLabel: { ...t.axis.axisLabel, formatter: state.mode === "level" ? undefined : derived.points ? "{value} pp" : "{value}%" },
       },
       series,
     },
@@ -137,7 +137,7 @@ export function renderCalendar(plot, ctx) {
       inRange: { color: theme.ramp(diverging ? "div" : "seq") },
       text: diverging ? ["rose", "fell"] : ["high", "low"],
       textStyle: { color: colours.muted },
-      formatter: (v) => (diverging ? percent(v) : v.toFixed(2)),
+      formatter: (v) => (diverging ? formatChange(v, derived.points) : v.toFixed(2)),
     },
   };
 

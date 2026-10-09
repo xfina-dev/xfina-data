@@ -25,10 +25,21 @@ export function parse(text) {
   return { columns: header.split(","), keyed, time: keyed.map((r) => toTime(r[0])) };
 }
 
+// How a change between two values is measured. A price or an index changes
+// by a percentage of itself. A series that is itself a percentage, such as a
+// policy rate (the catalog's `change: points`), changes by the difference:
+// 6.50 to 5.25 is -1.25 points, and calling it -19.23% would read as a
+// return, which a rate is not.
+function changeBetween(points) {
+  return points ? (b, a) => b - a : (b, a) => (b / a - 1) * 100;
+}
+
 // Each drawn line's published values, its change on the previous published
 // row, and, where configured, its change on the same month a year earlier.
 // A configured column missing from the CSV is an error, not an empty line.
 export function derive(rows, config) {
+  const points = config.change === "points";
+  const delta = changeBetween(points);
   const lines = config.lines.map((line) => {
     const index = rows.columns.indexOf(line.column);
     if (index < 0) throw new Error(`column ${line.column} is not in the CSV (${rows.columns.join(", ")})`);
@@ -37,16 +48,16 @@ export function derive(rows, config) {
   const level = lines.map((line) => rows.keyed.map((r) => Number(r[line.index])));
   // The previous trading day for a daily series, the previous month for a
   // monthly one (which has no gaps).
-  const change = level.map((series) => series.map((v, i) => (i === 0 ? null : (v / series[i - 1] - 1) * 100)));
+  const change = level.map((series) => series.map((v, i) => (i === 0 ? null : delta(v, series[i - 1]))));
   const yoy = lines.map((line) => {
     const byKey = new Map(rows.keyed.map((r) => [r[0], Number(r[line.index])]));
     return rows.keyed.map((r) => {
       const [y, m] = r[0].split("-");
       const before = byKey.get(String(Number(y) - 1) + "-" + m);
-      return before ? (Number(r[line.index]) / before - 1) * 100 : null;
+      return before ? delta(Number(r[line.index]), before) : null;
     });
   });
-  return { lines, level, change, yoy };
+  return { lines, level, change, yoy, points };
 }
 
 export function modes(views) {
@@ -104,7 +115,8 @@ export function periodRows(time, from, to) {
 // The period's own summary: each line's first and last published value in it,
 // the change between them, and that change as a compound annual rate,
 // annualised pro rata over whatever span is chosen, a few weeks included. A
-// period with no length (a single row) has no rate.
+// period with no length (a single row) has no rate, and nor does a change in
+// points: compounding a rate's difference means nothing.
 export function summary(rows, derived, lo, hi) {
   if (lo > hi) return null;
   const years = (rows.time[hi] - rows.time[lo]) / YEAR;
@@ -118,8 +130,8 @@ export function summary(rows, derived, lo, hi) {
         label: line.label,
         from: rows.keyed[lo][line.index],
         to: rows.keyed[hi][line.index],
-        change: percent((b / a - 1) * 100),
-        cagr: years > 0 ? `${percent((Math.pow(b / a, 1 / years) - 1) * 100)} a year` : "—",
+        change: formatChange(changeBetween(derived.points)(b, a), derived.points),
+        cagr: derived.points ? null : years > 0 ? `${percent((Math.pow(b / a, 1 / years) - 1) * 100)} a year` : "—",
       };
     }),
   };
@@ -178,6 +190,14 @@ export function percent(value) {
   return (value > 0 ? "+" : "") + value.toFixed(2) + "%";
 }
 
+// A computed change as the page shows it. Points are rounded to four places,
+// which is as many as the BIS prints, so a difference such as 12.06 - 11.83
+// reads 0.23 rather than carrying binary noise, and 0.125 stays 0.125.
+export function formatChange(value, points) {
+  if (!points) return percent(value);
+  return (value > 0 ? "+" : "") + String(Number(value.toFixed(4))) + " pp";
+}
+
 // A published value short enough for a calendar cell: digits past the second
 // decimal are cut, not rounded, and marked with an ellipsis.
 export function cellText(text) {
@@ -196,10 +216,11 @@ export function divergingBound(series) {
   return sizes.length ? sizes[Math.min(sizes.length - 1, Math.floor(sizes.length * 0.95))] || 1 : 1;
 }
 
-export function axisName(mode, unit, monthly) {
+export function axisName(mode, unit, monthly, points) {
   if (mode === "level") return unit;
-  if (mode === "yoy") return "% change on a year earlier";
-  return monthly ? "% change on the month before" : "% change on the previous published day";
+  const what = points ? "Change in percentage points" : "% change";
+  if (mode === "yoy") return `${what} on a year earlier`;
+  return monthly ? `${what} on the month before` : `${what} on the previous published day`;
 }
 
 export function escape(text) {

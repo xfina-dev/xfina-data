@@ -177,3 +177,85 @@ datasets:
       lines:
         - { column: index, label: CPI }
       views: [year-on-year]
+
+  - id: bis-policy-rate-in
+    title: India central bank policy rate, monthly since 1946, from the BIS
+    frequency: monthly
+    status: published
+    public: true
+    licence: >-
+      Source: BIS (data.bis.org). BIS statistics may be reproduced freely with
+      this attribution and at no additional charge, under the BIS terms of
+      permitted use: https://data.bis.org/help/legal
+    source:
+      kind: sdmx
+      provider: bis
+      flow: WS_CBPOL
+      version: "1.0"
+      # The monthly series, end of period, in percent a year. Not the daily
+      # D.IN, which carries literal `NaN` on some days.
+      key: M.IN
+      start: "1946-01"
+      # The BIS's India months arrive two to three months late, and it answers
+      # a window holding no month with a 404, which fails the run. Six months
+      # back clears that lag, so a 404 means India has gone quiet for half a
+      # year, which is worth a red run. About 2 KB a fetch.
+      refetch_days: 180
+    raw:
+      prefix: bis/ws-cbpol
+      origin: auto
+    output:
+      path: v1/rates/bis-policy-rate-in.csv
+      columns: [month, rate]
+    preview:
+      group: Interest rates
+      name: BIS India policy rate
+      summary: >-
+        The Reserve Bank of India's policy rate at the end of each month, as
+        the BIS publishes it: the repo rate from 3 April 2001, and the bank
+        rate before, since the RBI had no single policy rate until then. A
+        rate the central bank sets, not a return anyone earns; market short
+        rates trade near it.
+      unit: Percent a year
+      lines:
+        - { column: rate, label: Policy rate }
+      change: points
+
+  - id: bis-policy-rate-us
+    title: US central bank policy rate, monthly since 1954, from the BIS
+    frequency: monthly
+    status: published
+    public: true
+    licence: >-
+      Source: BIS (data.bis.org). BIS statistics may be reproduced freely with
+      this attribution and at no additional charge, under the BIS terms of
+      permitted use: https://data.bis.org/help/legal
+    source:
+      kind: sdmx
+      provider: bis
+      flow: WS_CBPOL
+      version: "1.0"
+      key: M.US
+      start: "1954-07"
+      # The US months are current and policy rates are rarely revised, so
+      # this is India's window for symmetry, not need. About 1.5 KB a fetch.
+      refetch_days: 180
+    raw:
+      prefix: bis/ws-cbpol
+      origin: auto
+    output:
+      path: v1/rates/bis-policy-rate-us.csv
+      columns: [month, rate]
+    preview:
+      group: Interest rates
+      name: BIS US policy rate
+      summary: >-
+        The Federal Reserve's policy rate at the end of each month, as the BIS
+        publishes it: the Fed funds target from 19 December 1985, taking the
+        midpoint once the target became a range in December 2008, and the
+        effective Fed funds rate before. A rate the central bank sets, not a
+        return anyone earns; market short rates trade near it.
+      unit: Percent a year
+      lines:
+        - { column: rate, label: Policy rate }
+      change: points

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Central bank policy rates from the BIS are published**, monthly, in a new "Interest rates" group, for use as a risk-free rate:
+  - `v1/rates/bis-policy-rate-in.csv`: India, 966 months from 1946-01 to 2026-06 (the BIS's India data runs two to three months behind). The repo rate from 3 April 2001; the bank rate before, since the RBI had no single policy rate until then.
+  - `v1/rates/bis-policy-rate-us.csv`: the US, 867 months from 1954-07 to 2026-09. The Fed funds target from 19 December 1985, its midpoint once it became a range in December 2008; the effective Fed funds rate before.
+  - Columns `[month, rate]`: the rate on the month's last day, in percent a year, exactly as the BIS prints it (`3`, `0.125`, `3.875`). It is a rate the central bank sets, not a return anyone earns. No index or return is derived here; turning the rate into returns is left to whoever uses it.
+  - Both come from the BIS's WS_CBPOL dataflow (keys `M.IN` and `M.US`, not the daily series, which carries `NaN` on some days), under the same terms as the BIS USD/INR rate. Each is fetched whole on its first run (about 0.57 MB for the two) and six months back afterwards (1-2 KB a fetch). The window is longer than for USD/INR because the BIS answers a window holding no month with a 404, and India's months arrive late.
+- **A rate's page shows change in percentage points**: a new optional `preview.change: points` in the catalog makes a dataset's Change the difference between two values (6.50 → 5.25 is −1.25 pp, not −19.23%) and drops CAGR from its period summary, since compounding a rate's change means nothing. The policy rates use it; every other dataset keeps `relative`, and its page is unchanged.
+
 ### Changed
 
 - **The site is a Vue app on xfina-ui 0.6.1**, published on npm, the theme and shadcn components every xfina.dev site now shares. Its pages are rendered to static HTML at build time, so each dataset page still arrives with its title, summary, facts and source, for readers and search engines alike. Visible changes:

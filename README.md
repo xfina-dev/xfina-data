@@ -25,6 +25,8 @@ Source  ──▶  Raw archive  ──▶  Parse  ──▶  Series  ──▶  
 | 📉 | India CPI (all-India combined, general index) | Monthly | `v1/inflation/in-cpi.csv` | **Published** |
 | 🌐 | USD/INR exchange rate, from the BIS | Daily, 1973→ | `v1/fx/bis-usd-inr.csv` | **Published** |
 | 📜 | India CPI, monthly since 1957, from the IMF | Monthly | `v1/inflation/in-cpi-imf.csv` | **Published** |
+| 🏦 | India central bank policy rate, from the BIS | Monthly, 1946→ | `v1/rates/bis-policy-rate-in.csv` | **Published** |
+| 🏦 | US central bank policy rate, from the BIS | Monthly, 1954→ | `v1/rates/bis-policy-rate-us.csv` | **Published** |
 
 Every published dataset has a preview page at `data.xfina.dev/datasets/<id>/`, with a chart or a calendar view (a GitHub-style year of days for daily series, a years × months grid for monthly ones), configured by the `preview` block of its catalog entry.
 

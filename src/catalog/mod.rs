@@ -139,6 +139,25 @@ pub struct Preview {
     /// Views offered beside the published values themselves.
     #[serde(default)]
     pub views: Vec<View>,
+
+    /// How the page measures a change between two values.
+    #[serde(default)]
+    pub change: ChangeKind,
+}
+
+/// How a change between two values is computed in the reader's browser.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ChangeKind {
+    /// As a percentage of the earlier value, with a compound annual rate over
+    /// a period: right for a price or an index level.
+    #[default]
+    Relative,
+    /// As the difference, in percentage points, with no annual rate: right
+    /// for a series that is itself a percentage. A rate going from 6.50 to
+    /// 5.25 has fallen 1.25 points; calling that −19.23% or giving it a CAGR
+    /// reads as a return, which a rate is not.
+    Points,
 }
 
 /// One drawn column.

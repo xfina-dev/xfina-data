@@ -190,6 +190,8 @@ pub struct SiteDataset {
     pub lines: Vec<crate::catalog::Line>,
     /// Views computed in the browser beside the published values.
     pub views: Vec<crate::catalog::View>,
+    /// How a change between two values is measured.
+    pub change: crate::catalog::ChangeKind,
     /// Absent until the dataset is published: the index then says so, and
     /// it gets no page.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -277,6 +279,7 @@ pub fn site_data(catalog: &Catalog, data: &DataDir) -> Result<SiteData> {
             frequency: dataset.frequency,
             lines: preview.lines.clone(),
             views: preview.views.clone(),
+            change: preview.change,
             published,
         };
         match groups.iter_mut().find(|g| g.name == preview.group) {

@@ -10,6 +10,7 @@ import {
   defaultPreset,
   derive,
   divergingBound,
+  formatChange,
   modes,
   parse,
   percent,
@@ -24,6 +25,7 @@ import {
 
 const fixture = (path) => readFileSync(new URL(`../fixtures/data/${path}`, import.meta.url), "utf8");
 const cpiConfig = { lines: [{ column: "index", label: "CPI" }], views: ["year-on-year"] };
+const rateConfig = { lines: [{ column: "rate", label: "Policy rate" }], views: [], change: "points" };
 
 describe("the published CSV", () => {
   test("parses into rows and times, a month counting from its first day", () => {
@@ -98,6 +100,33 @@ describe("the summary", () => {
     const rows = parse(fixture("v1/inflation/in-cpi.csv"));
     expect(summary(rows, derive(rows, cpiConfig), 3, 3).stats[0].cagr).toBe("—");
     expect(summary(rows, derive(rows, cpiConfig), 4, 3)).toBeNull();
+  });
+});
+
+describe("a rate", () => {
+  test("changes by the difference in points, not a percentage of itself", () => {
+    const rows = parse(fixture("v1/rates/bis-policy-rate-in.csv"));
+    expect(rows.keyed[3]).toEqual(["2001-03", "7"]);
+    const { change, points } = derive(rows, rateConfig);
+    expect(points).toBe(true);
+    // 2001-03 to 2001-04: the bank rate's 7 to the repo rate's 8.75.
+    expect(change[0][4]).toBe(1.75);
+    expect(formatChange(change[0][4], true)).toBe("+1.75 pp");
+  });
+
+  test("has a change in points over a period, and no CAGR", () => {
+    const rows = parse(fixture("v1/rates/bis-policy-rate-in.csv"));
+    const [rate] = summary(rows, derive(rows, rateConfig), 0, rows.keyed.length - 1).stats;
+    expect([rate.from, rate.to]).toEqual(["8", "8.5"]);
+    expect(rate.change).toBe("+0.5 pp");
+    expect(rate.cagr).toBeNull();
+  });
+
+  test("shows points without binary noise or lost digits", () => {
+    expect(formatChange(12.06 - 11.83, true)).toBe("+0.23 pp");
+    expect(formatChange(0.125 - 1, true)).toBe("-0.875 pp");
+    expect(formatChange(0, true)).toBe("0 pp");
+    expect(formatChange(1.234, false)).toBe("+1.23%");
   });
 });
 

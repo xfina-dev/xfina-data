@@ -1,7 +1,7 @@
 {
   "generated_by": "xfina-data 0.1.0",
   "raw_base_url": "https://raw.data.xfina.dev",
-  "raw_bytes": 579864230,
+  "raw_bytes": 580437303,
   "raw_budget_bytes": 10000000000,
   "datasets": [
     {
@@ -124,6 +124,62 @@
       "manifest": "v1/manifests/in-cpi-imf.csv",
       "raw_files": 2,
       "raw_bytes": 147151
+    },
+    {
+      "id": "bis-policy-rate-in",
+      "title": "India central bank policy rate, monthly since 1946, from the BIS",
+      "frequency": "monthly",
+      "path": "v1/rates/bis-policy-rate-in.csv",
+      "columns": [
+        "month",
+        "rate"
+      ],
+      "licence": "Source: BIS (data.bis.org). BIS statistics may be reproduced freely with this attribution and at no additional charge, under the BIS terms of permitted use: https://data.bis.org/help/legal",
+      "source": {
+        "kind": "sdmx",
+        "provider": "bis",
+        "flow": "WS_CBPOL",
+        "version": "1.0",
+        "key": "M.IN",
+        "start": "1946-01",
+        "refetch_days": 180
+      },
+      "rows": 966,
+      "first": "1946-01",
+      "last": "2026-06",
+      "sha256": "e6794f2385a55d24036d6f6731613e43366b60aeaa1598b722395146e0b5e3cb",
+      "updated_at": "2026-10-09T01:51:50Z",
+      "manifest": "v1/manifests/bis-policy-rate-in.csv",
+      "raw_files": 1,
+      "raw_bytes": 346844
+    },
+    {
+      "id": "bis-policy-rate-us",
+      "title": "US central bank policy rate, monthly since 1954, from the BIS",
+      "frequency": "monthly",
+      "path": "v1/rates/bis-policy-rate-us.csv",
+      "columns": [
+        "month",
+        "rate"
+      ],
+      "licence": "Source: BIS (data.bis.org). BIS statistics may be reproduced freely with this attribution and at no additional charge, under the BIS terms of permitted use: https://data.bis.org/help/legal",
+      "source": {
+        "kind": "sdmx",
+        "provider": "bis",
+        "flow": "WS_CBPOL",
+        "version": "1.0",
+        "key": "M.US",
+        "start": "1954-07",
+        "refetch_days": 180
+      },
+      "rows": 867,
+      "first": "1954-07",
+      "last": "2026-09",
+      "sha256": "a517c4dc5e425d3614fe1f7d887aeb72282a281d1bfcb58d8b1ef13141108470",
+      "updated_at": "2026-10-09T01:51:50Z",
+      "manifest": "v1/manifests/bis-policy-rate-us.csv",
+      "raw_files": 1,
+      "raw_bytes": 226229
     }
   ]
 }

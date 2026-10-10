@@ -1,7 +1,7 @@
 {
   "generated_by": "xfina-data 0.1.0",
   "raw_base_url": "https://raw.data.xfina.dev",
-  "raw_bytes": 580681109,
+  "raw_bytes": 580687010,
   "raw_budget_bytes": 10000000000,
   "datasets": [
     {
@@ -94,8 +94,8 @@
       "sha256": "9b43057efc0f6de945a72a0e5e5cc9024b7f2633ef5ef37d4721e2bedf4e32c0",
       "updated_at": "2026-10-08T17:29:49Z",
       "manifest": "v1/manifests/bis-usd-inr.csv",
-      "raw_files": 8,
-      "raw_bytes": 1974151
+      "raw_files": 9,
+      "raw_bytes": 1980052
     },
     {
       "id": "in-cpi-imf",

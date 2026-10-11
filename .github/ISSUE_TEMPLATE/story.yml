@@ -1,0 +1,26 @@
+name: Share how you used it
+description: Tell us what you used a dataset for. It shapes what we publish next.
+title: "[Story] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! Hearing how the data is used is the best feedback there is. Issues here are public: please leave out your own amounts and details.
+  - type: input
+    id: tool
+    attributes:
+      label: Dataset or page
+      placeholder: sbi-forex-card-usd
+    validations:
+      required: true
+  - type: textarea
+    id: story
+    attributes:
+      label: What did you use it for?
+      description: The question you had, and what you found.
+    validations:
+      required: true
+  - type: textarea
+    id: better
+    attributes:
+      label: What would have made it better?

@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Nothing in the published files changes.
 - **`xfina-data site build` is now `xfina-data site data`**: it writes `site-data.json`, the input the site's pages are built from, instead of the pages themselves.
 
+### Fixed
+
+- **A dataset page fits a phone**: at 375 px it laid out 499 px wide and scrolled sideways, because the CSV's URL in the title row would not shrink below its full length. The URL now shortens with an ellipsis inside its field. It is still copied and linked in full, and wider screens are unchanged.
+
 ### Changed
 
 - **The site uses xfina-ui** ([v0.2.0](https://github.com/xfina-dev/xfina-ui/releases/tag/v0.2.0)), the look shared with xfina.dev and labs.xfina.dev. Changes a reader will see:

@@ -35,7 +35,9 @@ useHead(() =>
         </p>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h1 class="text-2xl font-semibold leading-tight tracking-tight">{{ dataset.title }}</h1>
-          <div class="flex flex-wrap items-center gap-2">
+          <!-- min-w-0: a flex item will not shrink below its content, the
+               full URL, so on a phone the page scrolled sideways. -->
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
             <CopyField :value="csvUrl(dataset)" :href="`/${dataset.published.path}`" label="URL" />
             <Button as="a" :href="`/${dataset.published.path}`" download size="sm">Download CSV</Button>
           </div>

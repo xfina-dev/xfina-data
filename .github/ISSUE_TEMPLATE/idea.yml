@@ -1,0 +1,24 @@
+name: Request a feature
+description: A dataset you'd like published, or an idea for an existing one or the site.
+title: "[Idea] "
+labels: [enhancement]
+body:
+  - type: input
+    id: tool
+    attributes:
+      label: Dataset or page
+      placeholder: sbi-forex-card-usd, or a new dataset
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: For a new dataset, where it is published today helps.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What would it help you do?
+      description: The question you're trying to answer helps more than the exact feature.

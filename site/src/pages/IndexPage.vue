@@ -73,16 +73,11 @@ access-control-allow-origin: *</pre>
       </CardContent>
     </Card>
 
-    <!-- In the browser only: xfina-ui 0.8.0's card reads location while it
-         renders, which throws in the static build, and it reads the stored
-         answer at setup, which the static HTML could not match. -->
-    <ClientOnly>
-      <FeedbackCard
-        product="Xfina Data"
-        repo="https://github.com/xfina-dev/xfina-data"
-        storage-key="xfina_data_feedback"
-        nudge="Found this useful? A minute of feedback shapes what we build next."
-      />
-    </ClientOnly>
+    <FeedbackCard
+      product="Xfina Data"
+      repo="https://github.com/xfina-dev/xfina-data"
+      storage-key="xfina_data_feedback"
+      nudge="Found this useful? A minute of feedback shapes what we build next."
+    />
   </div>
 </template>

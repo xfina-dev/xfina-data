@@ -3,7 +3,7 @@
 // to use the files. A dataset still being brought up says so, so a reader can
 // see what is coming without mistaking it for something to use today.
 import { useHead } from "@unhead/vue";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "xfina-ui";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, FeedbackCard } from "xfina-ui";
 import DatasetFacts from "../components/DatasetFacts.vue";
 import { ORIGIN, groups, pageOf, published } from "../site.js";
 
@@ -72,5 +72,17 @@ access-control-allow-origin: *</pre>
         <p>Paths and columns under <code class="text-foreground">/v1/</code> are only ever added to, never renamed or removed.</p>
       </CardContent>
     </Card>
+
+    <!-- In the browser only: xfina-ui 0.8.0's card reads location while it
+         renders, which throws in the static build, and it reads the stored
+         answer at setup, which the static HTML could not match. -->
+    <ClientOnly>
+      <FeedbackCard
+        product="Xfina Data"
+        repo="https://github.com/xfina-dev/xfina-data"
+        storage-key="xfina_data_feedback"
+        nudge="Found this useful? A minute of feedback shapes what we build next."
+      />
+    </ClientOnly>
   </div>
 </template>

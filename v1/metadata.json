@@ -1,7 +1,7 @@
 {
   "generated_by": "xfina-data 0.1.0",
   "raw_base_url": "https://raw.data.xfina.dev",
-  "raw_bytes": 580698389,
+  "raw_bytes": 580947770,
   "raw_budget_bytes": 10000000000,
   "datasets": [
     {
@@ -23,14 +23,14 @@
         ],
         "currency": "USD"
       },
-      "rows": 1596,
+      "rows": 1597,
       "first": "2020-01-06",
-      "last": "2026-10-09",
-      "sha256": "1aa6417d91049854ad72cbe87c7b7d68a789133920b880e751880a081be42961",
-      "updated_at": "2026-10-09T17:08:05Z",
+      "last": "2026-10-12",
+      "sha256": "45d00844eb807f19917d13ef53e3d3c1905dc74eb3fe9659eee15c9ea6c66dbd",
+      "updated_at": "2026-10-12T19:56:10Z",
       "manifest": "v1/manifests/sbi-forex-card-usd.csv",
-      "raw_files": 1651,
-      "raw_bytes": 577940572,
+      "raw_files": 1652,
+      "raw_bytes": 578182009,
       "unreadable": [
         {
           "sha256": "d1acc012fa7fed5796c81c415946f5e3caf79bd57b62fcba5c413b0034158098",
@@ -60,14 +60,14 @@
         "sector_code": 3,
         "division_code": "00"
       },
-      "rows": 164,
+      "rows": 165,
       "first": "2013-01",
-      "last": "2026-08",
-      "sha256": "6f3c2751808dfabb168bf9fb4031559a1c89d4afba3b60cd6c001f9353ba659d",
-      "updated_at": "2026-10-02T17:20:07Z",
+      "last": "2026-09",
+      "sha256": "b0c392b7441865a7df77606ba96b047ca240be91d8935fb2b8364d746f7391b7",
+      "updated_at": "2026-10-12T19:56:10Z",
       "manifest": "v1/manifests/in-cpi.csv",
-      "raw_files": 14,
-      "raw_bytes": 43810
+      "raw_files": 15,
+      "raw_bytes": 46275
     },
     {
       "id": "bis-usd-inr",
@@ -94,8 +94,8 @@
       "sha256": "9b43057efc0f6de945a72a0e5e5cc9024b7f2633ef5ef37d4721e2bedf4e32c0",
       "updated_at": "2026-10-08T17:29:49Z",
       "manifest": "v1/manifests/bis-usd-inr.csv",
-      "raw_files": 11,
-      "raw_bytes": 1991431
+      "raw_files": 12,
+      "raw_bytes": 1996910
     },
     {
       "id": "in-cpi-imf",

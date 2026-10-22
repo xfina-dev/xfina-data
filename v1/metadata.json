@@ -1,7 +1,7 @@
 {
   "generated_by": "xfina-data 0.1.0",
   "raw_base_url": "https://raw.data.xfina.dev",
-  "raw_bytes": 582918818,
+  "raw_bytes": 583168250,
   "raw_budget_bytes": 10000000000,
   "datasets": [
     {
@@ -23,14 +23,14 @@
         ],
         "currency": "USD"
       },
-      "rows": 1605,
+      "rows": 1606,
       "first": "2020-01-06",
-      "last": "2026-10-21",
-      "sha256": "a6d9ecd70fd5aa8afaaa7ed149327a3f8aecc287f59999cb580fb7c428115d84",
-      "updated_at": "2026-10-21T15:29:53Z",
+      "last": "2026-10-22",
+      "sha256": "71a4698850a79b3640244016b0513e26eef21101492e3d290e17f9180567f7c1",
+      "updated_at": "2026-10-22T15:29:14Z",
       "manifest": "v1/manifests/sbi-forex-card-usd.csv",
-      "raw_files": 1660,
-      "raw_bytes": 580113577,
+      "raw_files": 1661,
+      "raw_bytes": 580354999,
       "unreadable": [
         {
           "sha256": "d1acc012fa7fed5796c81c415946f5e3caf79bd57b62fcba5c413b0034158098",
@@ -88,14 +88,14 @@
         "start": "1973-01-01",
         "refetch_days": 60
       },
-      "rows": 13620,
+      "rows": 13625,
       "first": "1973-01-02",
-      "last": "2026-10-13",
-      "sha256": "c697788d42c0d21bc3bcfdedc652fec77d3e4f9beda0e50fcb86d1265461320d",
-      "updated_at": "2026-10-15T15:12:58Z",
+      "last": "2026-10-20",
+      "sha256": "a4f4a6f586f8799bf63c3bba1b20a3241ec227e95b592452fe7fc24779a77e34",
+      "updated_at": "2026-10-22T15:29:14Z",
       "manifest": "v1/manifests/bis-usd-inr.csv",
-      "raw_files": 19,
-      "raw_bytes": 2036390
+      "raw_files": 20,
+      "raw_bytes": 2042435
     },
     {
       "id": "in-cpi-imf",
@@ -144,14 +144,14 @@
         "start": "1946-01",
         "refetch_days": 180
       },
-      "rows": 966,
+      "rows": 969,
       "first": "1946-01",
-      "last": "2026-06",
-      "sha256": "e6794f2385a55d24036d6f6731613e43366b60aeaa1598b722395146e0b5e3cb",
-      "updated_at": "2026-10-09T01:51:50Z",
+      "last": "2026-09",
+      "sha256": "8a3360f5e04dd5edd721c0f5b8fc39ab651f28df2f10802ef1d3e9bef64012fe",
+      "updated_at": "2026-10-22T15:29:14Z",
       "manifest": "v1/manifests/bis-policy-rate-in.csv",
-      "raw_files": 2,
-      "raw_bytes": 347726
+      "raw_files": 3,
+      "raw_bytes": 349691
     },
     {
       "id": "bis-policy-rate-us",

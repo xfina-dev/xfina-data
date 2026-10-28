@@ -1,7 +1,7 @@
 {
   "generated_by": "xfina-data 0.1.0",
   "raw_base_url": "https://raw.data.xfina.dev",
-  "raw_bytes": 583920687,
+  "raw_bytes": 584162120,
   "raw_budget_bytes": 10000000000,
   "datasets": [
     {
@@ -23,14 +23,14 @@
         ],
         "currency": "USD"
       },
-      "rows": 1609,
+      "rows": 1610,
       "first": "2020-01-06",
-      "last": "2026-10-27",
-      "sha256": "cfd23f06593881193463a1ddf9af79a79af42fa97bbb1c8f790fcf91926aa927",
-      "updated_at": "2026-10-27T15:57:19Z",
+      "last": "2026-10-28",
+      "sha256": "3b2b4d6da36393d9bb3ceaa5738ed0fa0e0d1a87aff24205a87a2ed03a67563b",
+      "updated_at": "2026-10-28T16:46:07Z",
       "manifest": "v1/manifests/sbi-forex-card-usd.csv",
-      "raw_files": 1664,
-      "raw_bytes": 581079323,
+      "raw_files": 1665,
+      "raw_bytes": 581320756,
       "unreadable": [
         {
           "sha256": "d1acc012fa7fed5796c81c415946f5e3caf79bd57b62fcba5c413b0034158098",

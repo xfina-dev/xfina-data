@@ -1,7 +1,7 @@
 {
   "generated_by": "xfina-data 0.1.0",
   "raw_base_url": "https://raw.data.xfina.dev",
-  "raw_bytes": 584901218,
+  "raw_bytes": 584909208,
   "raw_budget_bytes": 10000000000,
   "datasets": [
     {
@@ -94,8 +94,8 @@
       "sha256": "af56da8f4bd17ebd7bebb83b28a66d33fd24d107616a80ad36a222602c0e386f",
       "updated_at": "2026-10-29T17:02:01Z",
       "manifest": "v1/manifests/bis-usd-inr.csv",
-      "raw_files": 27,
-      "raw_bytes": 2082499
+      "raw_files": 28,
+      "raw_bytes": 2088263
     },
     {
       "id": "in-cpi-imf",
@@ -122,8 +122,8 @@
       "sha256": "5de020e8bb6a5628ac895c1a6c990f9538385cd71ff31295c3eaee8abdb75a55",
       "updated_at": "2026-10-02T17:20:07Z",
       "manifest": "v1/manifests/in-cpi-imf.csv",
-      "raw_files": 2,
-      "raw_bytes": 147151
+      "raw_files": 3,
+      "raw_bytes": 149377
     },
     {
       "id": "bis-policy-rate-in",

@@ -1,7 +1,7 @@
 {
   "generated_by": "xfina-data 0.1.0",
   "raw_base_url": "https://raw.data.xfina.dev",
-  "raw_bytes": 589604579,
+  "raw_bytes": 589851782,
   "raw_budget_bytes": 10000000000,
   "datasets": [
     {
@@ -23,14 +23,14 @@
         ],
         "currency": "USD"
       },
-      "rows": 1632,
+      "rows": 1633,
       "first": "2020-01-06",
-      "last": "2026-11-26",
-      "sha256": "5f9c75fb8a6268c21e878a1fde659655e369ebdff6ba0ed5188992c3f2712c61",
-      "updated_at": "2026-11-26T19:45:03Z",
+      "last": "2026-11-27",
+      "sha256": "2f51b227a6b281580e9151a7714776e2a7d049a44ac0e037150f1b38661c5821",
+      "updated_at": "2026-11-27T19:37:33Z",
       "manifest": "v1/manifests/sbi-forex-card-usd.csv",
-      "raw_files": 1687,
-      "raw_bytes": 586631351,
+      "raw_files": 1688,
+      "raw_bytes": 586872648,
       "unreadable": [
         {
           "sha256": "d1acc012fa7fed5796c81c415946f5e3caf79bd57b62fcba5c413b0034158098",
@@ -94,8 +94,8 @@
       "sha256": "48bf94cc75bbff6c5af393bb9e4884741eb5ff067d7d5fa768adbfd3b0c022f4",
       "updated_at": "2026-11-26T19:45:03Z",
       "manifest": "v1/manifests/bis-usd-inr.csv",
-      "raw_files": 46,
-      "raw_bytes": 2190768
+      "raw_files": 47,
+      "raw_bytes": 2196674
     },
     {
       "id": "in-cpi-imf",
